@@ -83,6 +83,7 @@ a { color: inherit; text-decoration: none; }
 /* ─── Tab Content ───────────────────────────────────────────── */
 .content { flex: 1; overflow: hidden; position: relative; }
 .tab-panel { position: absolute; inset: 0; overflow-y: auto; display: none; }
+#panel-kaart { overflow: hidden; }
 .tab-panel.active { display: block; }
 .tab-panel::-webkit-scrollbar { width: 3px; }
 .tab-panel::-webkit-scrollbar-track { background: transparent; }
@@ -581,8 +582,8 @@ a { color: inherit; text-decoration: none; }
     </div>
 
     <!-- ═══ KAART TAB ══════════════════════════════════════════ -->
-    <div class="tab-panel" id="panel-kaart" style="position:relative">
-      <div id="map" style="width:100%;height:100%;"></div>
+    <div class="tab-panel" id="panel-kaart" style="overflow:hidden">
+      <div id="map" style="position:absolute;inset:0;"></div>
       <div class="map-loading" id="map-loading">
         <div class="spinner"></div>
         <p>Kaart laden...</p>
