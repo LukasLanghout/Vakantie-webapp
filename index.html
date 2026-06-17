@@ -466,6 +466,95 @@ a { color: inherit; text-decoration: none; }
 
 /* Scrollbar global */
 .tab-panel { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+
+/* ─── Collection / Batch UI ──────────────────────────────────── */
+.collection-banner {
+  background: linear-gradient(135deg, rgba(87,192,216,.15), rgba(47,127,199,.15));
+  border: 1.5px solid rgba(47,127,199,.25); border-radius: 14px;
+  padding: 12px 14px; margin-bottom: 14px; display: flex; align-items: center; gap: 10px;
+}
+.collection-banner-icon { font-size: 24px; flex-shrink: 0; }
+.collection-banner-text { flex: 1; }
+.collection-banner-title { font-size: 13px; font-weight: 700; color: var(--navy); }
+.collection-banner-sub { font-size: 11px; color: var(--text); margin-top: 1px; }
+
+.batch-progress-wrap { margin-bottom: 14px; }
+.batch-progress-header {
+  display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;
+}
+.batch-progress-label { font-size: 12px; font-weight: 700; color: var(--navy); }
+.batch-progress-count { font-size: 11px; color: var(--text); }
+.batch-progress-bar {
+  height: 6px; background: var(--border); border-radius: 10px; overflow: hidden;
+}
+.batch-progress-fill {
+  height: 100%; border-radius: 10px;
+  background: linear-gradient(90deg, var(--blue), var(--teal));
+  transition: width .4s ease;
+}
+.batch-video-list {
+  display: flex; flex-direction: column; gap: 4px; max-height: 180px; overflow-y: auto;
+  margin-bottom: 14px; padding-right: 2px;
+}
+.batch-video-item {
+  display: flex; align-items: center; gap: 8px; padding: 7px 10px;
+  border-radius: 10px; background: var(--border); font-size: 12px; color: var(--text);
+}
+.batch-video-item.active { background: rgba(47,127,199,.1); color: var(--blue); }
+.batch-video-item.done { background: rgba(58,160,138,.08); color: var(--green); }
+.batch-video-item.skipped { background: rgba(224,92,92,.06); color: #b05050; }
+.batch-video-icon { font-size: 14px; width: 18px; text-align: center; flex-shrink: 0; }
+.batch-video-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.batch-results-header {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;
+}
+.batch-select-all {
+  font-size: 12px; font-weight: 700; color: var(--blue); cursor: pointer;
+  padding: 4px 8px; border-radius: 8px; background: rgba(47,127,199,.1);
+}
+.batch-result-list {
+  display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px;
+  max-height: 300px; overflow-y: auto; padding-right: 2px;
+}
+.batch-result-item {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+  border-radius: 14px; border: 2px solid var(--border); background: var(--white);
+  cursor: pointer; transition: border-color .15s, background .15s;
+}
+.batch-result-item.selected {
+  border-color: var(--blue); background: rgba(47,127,199,.05);
+}
+.batch-result-item.skipped {
+  opacity: .5; cursor: default; border-style: dashed;
+}
+.batch-checkbox {
+  width: 20px; height: 20px; border-radius: 6px; border: 2px solid var(--border);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  transition: background .15s, border-color .15s;
+}
+.batch-result-item.selected .batch-checkbox {
+  background: var(--blue); border-color: var(--blue);
+}
+.batch-result-item.selected .batch-checkbox::after { content: '✓'; color: white; font-size: 12px; font-weight: 700; }
+.batch-result-body { flex: 1; min-width: 0; }
+.batch-result-name { font-size: 13px; font-weight: 700; color: var(--navy); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.batch-result-sub { font-size: 11px; color: var(--text); margin-top: 1px; }
+.batch-result-price { font-size: 12px; font-weight: 700; color: var(--green); white-space: nowrap; }
+.batch-result-cat { width: 24px; height: 24px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
+
+.batch-save-btn {
+  width: 100%; padding: 15px; border-radius: 14px;
+  background: linear-gradient(135deg, var(--green), #4dc8aa);
+  color: white; font-size: 15px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  transition: transform .2s; margin-bottom: 8px;
+}
+.batch-save-btn:active { transform: scale(.98); }
+.batch-save-btn:disabled { opacity: .4; }
+.batch-skipped-note {
+  font-size: 11px; color: var(--text); text-align: center; padding: 6px;
+}
 </style>
 </head>
 <body>
@@ -884,8 +973,15 @@ function renderAddInput() {
   const hasKey = !!(groqKey || localStorage.getItem('groq_api_key'));
   document.getElementById('add-sheet-body').innerHTML = `
     <div class="url-input-wrap">
-      <input type="url" class="url-input" id="tiktok-url" placeholder="https://www.tiktok.com/@..." autocomplete="off" inputmode="url">
+      <input type="url" class="url-input" id="tiktok-url" placeholder="TikTok video of collectie URL..." autocomplete="off" inputmode="url">
       <button class="url-paste-btn" onclick="pasteUrl()">Plak</button>
+    </div>
+    <div class="collection-banner">
+      <div class="collection-banner-icon">📚</div>
+      <div class="collection-banner-text">
+        <div class="collection-banner-title">Collectie? Ook goed!</div>
+        <div class="collection-banner-sub">Plak een collectie-link om alle video's tegelijk te analyseren</div>
+      </div>
     </div>
     <button class="analyze-btn" onclick="startAnalyze()" id="analyze-btn">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7z"/></svg>
@@ -928,6 +1024,10 @@ function updateStep(id, status) {
   el.querySelector('.step-icon').textContent = status === 'done' ? '✅' : status === 'active' ? '⏳' : '○';
 }
 
+function isCollectionUrl(url) {
+  return url.includes('/collection/');
+}
+
 async function startAnalyze() {
   const url = (document.getElementById('tiktok-url')?.value || '').trim();
   if (!url) { showToast('Voeg eerst een TikTok URL in'); return; }
@@ -939,6 +1039,11 @@ async function startAnalyze() {
   if (!key) {
     showToast('Stel eerst je Groq API key in ⚙️');
     openSettings(); return;
+  }
+
+  if (isCollectionUrl(url)) {
+    startCollectionAnalyze(url);
+    return;
   }
 
   document.getElementById('add-sheet-title').textContent = 'Analyseren...';
@@ -1012,6 +1117,301 @@ async function startAnalyze() {
   };
 
   renderResultCard(currentAddResult);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// COLLECTION FLOW
+// ═══════════════════════════════════════════════════════════════
+
+function extractCollectionId(url) {
+  // https://www.tiktok.com/@user/collection/Name-7234567890123456789
+  const m = url.match(/\/collection\/[^/?#]*?(\d{10,})/);
+  if (m) return m[1];
+  // fallback: last path segment
+  const seg = url.split('/').filter(Boolean).pop()?.split('?')[0] || '';
+  const dm = seg.match(/(\d{10,})/);
+  return dm ? dm[1] : null;
+}
+
+async function fetchCollectionVideos(url) {
+  const collectionId = extractCollectionId(url);
+
+  // Try TikWM collection endpoint
+  const endpoints = collectionId ? [
+    `https://api.tikwm.com/api/mix/item_list/?mix_id=${collectionId}&count=30&cursor=0`,
+    `https://www.tikwm.com/api/mix/item_list/?mix_id=${collectionId}&count=30`,
+    `https://api.tikwm.com/v1/collection/posts?id=${collectionId}&count=30`,
+  ] : [];
+
+  // Also try passing the full URL
+  endpoints.push(`https://api.tikwm.com/?url=${encodeURIComponent(url)}`);
+
+  for (const ep of endpoints) {
+    try {
+      const r = await fetch(ep, { signal: AbortSignal.timeout(8000) });
+      const data = await r.json();
+      // Different response shapes from TikWM
+      const items =
+        data?.data?.videos ||
+        data?.data?.aweme_list ||
+        data?.data?.itemList ||
+        data?.data?.items ||
+        (Array.isArray(data?.data) ? data.data : null);
+      if (items && items.length > 0) {
+        return items.map(v => ({
+          url: v.play || v.video?.playAddr || url,
+          videoUrl: `https://www.tiktok.com/@${v.author?.unique_id || 'user'}/video/${v.aweme_id || v.id || ''}`,
+          title: v.title || v.desc || '',
+          desc: v.desc || v.title || '',
+          author: v.author?.unique_id || v.author?.nickname || '',
+          id: v.aweme_id || v.id || String(Math.random()),
+        }));
+      }
+    } catch(e) { /* try next */ }
+  }
+  return null;
+}
+
+let batchResults = [];
+let batchSelected = new Set();
+
+async function startCollectionAnalyze(collectionUrl) {
+  document.getElementById('add-sheet-title').textContent = 'Collectie laden...';
+  document.getElementById('add-sheet-body').innerHTML = `
+    <div class="parsing-state">
+      <div class="spinner"></div>
+      <div class="parsing-steps">
+        <div class="parsing-step active" id="step-col-fetch">
+          <span class="step-icon">⏳</span> TikTok collectie ophalen
+        </div>
+      </div>
+    </div>
+  `;
+
+  const videos = await fetchCollectionVideos(collectionUrl);
+
+  if (!videos || videos.length === 0) {
+    renderError(
+      'Collectie niet gevonden',
+      'Zorg dat de collectie openbaar is. Probeer ook een individuele video-link.'
+    );
+    return;
+  }
+
+  document.getElementById('add-sheet-title').textContent = `${videos.length} video's analyseren`;
+  batchResults = [];
+  batchSelected = new Set();
+
+  renderBatchProgress(videos, 0);
+
+  for (let i = 0; i < videos.length; i++) {
+    const v = videos[i];
+    updateBatchProgress(i, videos.length, v.title || `Video ${i + 1}`);
+
+    try {
+      const prompt = buildPrompt(v.videoUrl || collectionUrl, v.title, v.desc, v.author);
+      const response = await callGroq(prompt);
+      const parsed = parseGroqJson(response);
+
+      if (parsed.error) {
+        batchResults.push({ status: 'skipped', reason: parsed.message || 'Niet Rhodos', video: v });
+        markBatchItem(i, 'skipped', v.title || `Video ${i + 1}`);
+        continue;
+      }
+
+      if (!parsed.lat || !parsed.lng || (parsed.lat === 36.28 && parsed.lng === 28.15)) {
+        const geo = await geocode(parsed.area);
+        parsed.lat = geo.lat;
+        parsed.lng = geo.lng;
+      }
+
+      const cat = CAT_COLORS[parsed.cat] || CAT_COLORS['Strand'];
+      const act = {
+        id: `batch_${Date.now()}_${i}`,
+        url: v.videoUrl || collectionUrl,
+        tk: v.author,
+        name: parsed.name,
+        cat: parsed.cat, catA: cat.a, catB: cat.b,
+        area: parsed.area,
+        priceLabel: parsed.priceLabel, priceVal: parsed.priceVal || 0,
+        free: parsed.free, reserve: parsed.reserve,
+        hours: parsed.hours, dur: parsed.dur, travel: parsed.travel,
+        blurb: parsed.blurb, lat: parsed.lat, lng: parsed.lng,
+        day: null, time: '10:00', addedAt: Date.now() + i,
+      };
+      batchResults.push({ status: 'found', act });
+      batchSelected.add(act.id);
+      markBatchItem(i, 'done', parsed.name);
+    } catch(e) {
+      batchResults.push({ status: 'skipped', reason: e.message, video: v });
+      markBatchItem(i, 'skipped', v.title || `Video ${i + 1}`);
+    }
+
+    // Small delay to respect Groq rate limits
+    if (i < videos.length - 1) await new Promise(r => setTimeout(r, 400));
+  }
+
+  renderBatchFinalResults(videos.length);
+}
+
+function renderBatchProgress(videos, current) {
+  document.getElementById('add-sheet-body').innerHTML = `
+    <div class="batch-progress-wrap">
+      <div class="batch-progress-header">
+        <span class="batch-progress-label">Analyseren...</span>
+        <span class="batch-progress-count" id="batch-count">0 / ${videos.length}</span>
+      </div>
+      <div class="batch-progress-bar">
+        <div class="batch-progress-fill" id="batch-fill" style="width:0%"></div>
+      </div>
+    </div>
+    <div class="batch-video-list" id="batch-video-list">
+      ${videos.map((v, i) => `
+        <div class="batch-video-item" id="bvi-${i}">
+          <span class="batch-video-icon">○</span>
+          <span class="batch-video-name">${esc(v.title || `Video ${i + 1}`)}</span>
+        </div>`).join('')}
+    </div>
+  `;
+}
+
+function updateBatchProgress(index, total, label) {
+  const pct = Math.round((index / total) * 100);
+  const fillEl = document.getElementById('batch-fill');
+  const countEl = document.getElementById('batch-count');
+  if (fillEl) fillEl.style.width = pct + '%';
+  if (countEl) countEl.textContent = `${index} / ${total}`;
+
+  const item = document.getElementById(`bvi-${index}`);
+  if (item) {
+    item.className = 'batch-video-item active';
+    item.querySelector('.batch-video-icon').textContent = '⏳';
+    item.querySelector('.batch-video-name').textContent = label;
+    item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+}
+
+function markBatchItem(index, status, label) {
+  const item = document.getElementById(`bvi-${index}`);
+  if (!item) return;
+  item.className = `batch-video-item ${status}`;
+  item.querySelector('.batch-video-icon').textContent = status === 'done' ? '✅' : '⛔';
+  item.querySelector('.batch-video-name').textContent = label;
+
+  const total = batchResults.length;
+  const pct = Math.round(((index + 1) / (document.getElementById('batch-count')?.textContent?.split('/')[1]?.trim() || total)) * 100);
+  const fillEl = document.getElementById('batch-fill');
+  const countEl = document.getElementById('batch-count');
+  if (fillEl) fillEl.style.width = Math.min(pct, 99) + '%';
+  if (countEl) {
+    const parts = countEl.textContent.split('/');
+    countEl.textContent = `${index + 1} / ${parts[1]?.trim() || total}`;
+  }
+}
+
+function renderBatchFinalResults(totalFetched) {
+  const found = batchResults.filter(r => r.status === 'found');
+  const skipped = batchResults.filter(r => r.status === 'skipped');
+
+  document.getElementById('add-sheet-title').textContent =
+    `${found.length} activiteit${found.length !== 1 ? 'en' : ''} gevonden`;
+
+  if (found.length === 0) {
+    document.getElementById('add-sheet-body').innerHTML = `
+      <div class="error-state">
+        <div class="error-icon">🤔</div>
+        <div class="error-title">Geen Rhodos activiteiten</div>
+        <div class="error-msg">Geen van de ${totalFetched} video's bleek over Rhodos te gaan.</div>
+      </div>
+      <button class="analyze-btn" onclick="renderAddInput();document.getElementById('add-sheet-title').textContent='Activiteit toevoegen'">
+        ← Opnieuw proberen
+      </button>
+    `;
+    return;
+  }
+
+  document.getElementById('add-sheet-body').innerHTML = `
+    <div class="batch-results-header">
+      <span style="font-size:12px;font-weight:700;color:var(--navy)">${found.length} gevonden${skipped.length ? `, ${skipped.length} overgeslagen` : ''}</span>
+      <span class="batch-select-all" onclick="toggleSelectAll()">Alles selecteren</span>
+    </div>
+    <div class="batch-result-list" id="batch-result-list">
+      ${found.map(r => batchResultItemHTML(r.act)).join('')}
+      ${skipped.map(r => `
+        <div class="batch-result-item skipped">
+          <div class="batch-checkbox"></div>
+          <div class="batch-result-body">
+            <div class="batch-result-name">⛔ ${esc(r.video?.title || 'Video')}</div>
+            <div class="batch-result-sub">${esc(r.reason || 'Niet Rhodos')}</div>
+          </div>
+        </div>`).join('')}
+    </div>
+    <button class="batch-save-btn" id="batch-save-btn" onclick="saveBatchActivities()">
+      ✅ Sla <span id="batch-save-count">${found.length}</span> activiteit${found.length !== 1 ? 'en' : ''} op
+    </button>
+    ${skipped.length ? `<div class="batch-skipped-note">⛔ ${skipped.length} video${skipped.length !== 1 ? "'s" : ''} overgeslagen (niet over Rhodos)</div>` : ''}
+    <div style="height:8px"></div>
+  `;
+}
+
+function batchResultItemHTML(act) {
+  const cat = CAT_COLORS[act.cat] || CAT_COLORS['Strand'];
+  const sel = batchSelected.has(act.id);
+  return `
+    <div class="batch-result-item ${sel ? 'selected' : ''}" id="bri-${act.id}" onclick="toggleBatchItem('${act.id}')">
+      <div class="batch-checkbox"></div>
+      <div class="batch-result-cat" style="background:${cat.a}20">${cat.emoji}</div>
+      <div class="batch-result-body">
+        <div class="batch-result-name">${esc(act.name)}</div>
+        <div class="batch-result-sub">📍 ${esc(act.area)} · ${esc(act.cat)}</div>
+      </div>
+      <div class="batch-result-price">${esc(act.priceLabel)}</div>
+    </div>`;
+}
+
+function toggleBatchItem(id) {
+  if (batchSelected.has(id)) {
+    batchSelected.delete(id);
+    document.getElementById(`bri-${id}`)?.classList.remove('selected');
+  } else {
+    batchSelected.add(id);
+    document.getElementById(`bri-${id}`)?.classList.add('selected');
+  }
+  updateBatchSaveBtn();
+}
+
+function toggleSelectAll() {
+  const found = batchResults.filter(r => r.status === 'found');
+  const allSelected = found.every(r => batchSelected.has(r.act.id));
+  if (allSelected) {
+    found.forEach(r => { batchSelected.delete(r.act.id); document.getElementById(`bri-${r.act.id}`)?.classList.remove('selected'); });
+  } else {
+    found.forEach(r => { batchSelected.add(r.act.id); document.getElementById(`bri-${r.act.id}`)?.classList.add('selected'); });
+  }
+  updateBatchSaveBtn();
+}
+
+function updateBatchSaveBtn() {
+  const n = batchSelected.size;
+  const btn = document.getElementById('batch-save-btn');
+  const countEl = document.getElementById('batch-save-count');
+  if (btn) btn.disabled = n === 0;
+  if (countEl) countEl.textContent = n;
+}
+
+function saveBatchActivities() {
+  const toSave = batchResults
+    .filter(r => r.status === 'found' && batchSelected.has(r.act.id))
+    .map(r => r.act);
+  if (toSave.length === 0) return;
+  state.activities.unshift(...toSave);
+  saveState();
+  batchResults = [];
+  batchSelected = new Set();
+  closeAddSheet();
+  renderAll();
+  if (map) refreshMapMarkers();
+  showToast(`✅ ${toSave.length} activiteit${toSave.length !== 1 ? 'en' : ''} opgeslagen!`);
 }
 
 function renderResultCard(act) {
