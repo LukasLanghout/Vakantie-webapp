@@ -941,16 +941,16 @@ function parseGroqJson(text) {
 // ═══════════════════════════════════════════════════════════════
 
 async function fetchTikTokMeta(url) {
+  // Use our serverless proxy to avoid CORS
   try {
-    const api = `https://api.tikwm.com/v1/feed?url=${encodeURIComponent(url)}`;
-    const r = await fetch(api);
-    const data = await r.json();
-    if (data && data.data && data.data.length > 0) {
-      const v = data.data[0];
+    const r = await fetch(`/api/tiktok?type=video&url=${encodeURIComponent(url)}`);
+    const json = await r.json();
+    const v = json?.data?.data || json?.data;
+    if (v && (v.title || v.desc)) {
       return { title: v.title || '', desc: v.desc || v.title || '', author: v.author?.unique_id || '' };
     }
   } catch(e) {}
-  // fallback: try oembed
+  // Fallback: TikTok oembed (no CORS issues)
   try {
     const oembed = `https://www.tiktok.com/oembed?url=${encodeURIComponent(url)}`;
     const r = await fetch(oembed);
@@ -1135,39 +1135,24 @@ function extractCollectionId(url) {
 
 async function fetchCollectionVideos(url) {
   const collectionId = extractCollectionId(url);
+  if (!collectionId) return null;
 
-  // Try TikWM collection endpoint
-  const endpoints = collectionId ? [
-    `https://api.tikwm.com/api/mix/item_list/?mix_id=${collectionId}&count=30&cursor=0`,
-    `https://www.tikwm.com/api/mix/item_list/?mix_id=${collectionId}&count=30`,
-    `https://api.tikwm.com/v1/collection/posts?id=${collectionId}&count=30`,
-  ] : [];
-
-  // Also try passing the full URL
-  endpoints.push(`https://api.tikwm.com/?url=${encodeURIComponent(url)}`);
-
-  for (const ep of endpoints) {
-    try {
-      const r = await fetch(ep, { signal: AbortSignal.timeout(8000) });
-      const data = await r.json();
-      // Different response shapes from TikWM
-      const items =
-        data?.data?.videos ||
-        data?.data?.aweme_list ||
-        data?.data?.itemList ||
-        data?.data?.items ||
-        (Array.isArray(data?.data) ? data.data : null);
-      if (items && items.length > 0) {
-        return items.map(v => ({
-          url: v.play || v.video?.playAddr || url,
-          videoUrl: `https://www.tiktok.com/@${v.author?.unique_id || 'user'}/video/${v.aweme_id || v.id || ''}`,
-          title: v.title || v.desc || '',
-          desc: v.desc || v.title || '',
-          author: v.author?.unique_id || v.author?.nickname || '',
-          id: v.aweme_id || v.id || String(Math.random()),
-        }));
-      }
-    } catch(e) { /* try next */ }
+  // Use our serverless proxy — avoids CORS and DNS issues
+  try {
+    const r = await fetch(`/api/tiktok?type=collection&mix_id=${collectionId}`);
+    const json = await r.json();
+    if (json?.ok && json?.items?.length > 0) {
+      return json.items.map(v => ({
+        videoUrl: `https://www.tiktok.com/@${v.author?.unique_id || 'user'}/video/${v.aweme_id || v.id || ''}`,
+        title: v.title || v.desc || '',
+        desc: v.desc || v.title || '',
+        author: v.author?.unique_id || v.author?.nickname || '',
+        id: String(v.aweme_id || v.id || Math.random()),
+      }));
+    }
+    if (json?.error) throw new Error(json.error);
+  } catch(e) {
+    console.warn('Collection fetch failed:', e.message);
   }
   return null;
 }
