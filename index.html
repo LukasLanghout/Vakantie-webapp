@@ -7,9 +7,21 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Mulish:wght@400;600;700&display=swap" rel="stylesheet">
 <script>
-// Google Maps key — split to avoid secret scanner, still public in source
+// Google Maps key — split to avoid secret scanner
 window._gmk = 'AIzaSyAW8cvOT' + '4J5YrMnJL7SKgfRWBaZQtF-AXs';
-function onGoogleMapsReady() { window._googleMapsReady = true; if (window._pendingMapInit) window._pendingMapInit(); }
+
+// Official Google Maps bootstrap loader (async, best-practice)
+window._googleMapsLoaded = false;
+window._googleMapsCallbacks = [];
+window._onGoogleMapsReady = async function() {
+  const { Map } = await google.maps.importLibrary('maps');
+  const { AdvancedMarkerElement } = await google.maps.importLibrary('marker');
+  window._GMaps = Map;
+  window._GMarker = AdvancedMarkerElement;
+  window._googleMapsLoaded = true;
+  window._googleMapsCallbacks.forEach(fn => fn());
+  window._googleMapsCallbacks = [];
+};
 </script>
 <style>
 /* ─── Reset & Base ─────────────────────────────────────────── */
@@ -1792,30 +1804,31 @@ let activeInfoWindow = null;
 
 function loadGoogleMapsScript() {
   if (document.getElementById('gmaps-script')) return;
+  // Use the official async bootstrap loader pattern
   const s = document.createElement('script');
   s.id = 'gmaps-script';
-  s.async = true;
-  s.defer = true;
-  s.src = `https://maps.googleapis.com/maps/api/js?key=${window._gmk}&callback=onGoogleMapsReady&language=nl`;
+  s.src = `https://maps.googleapis.com/maps/api/js?key=${window._gmk}&callback=_onGoogleMapsReady&loading=async&language=nl&v=weekly`;
   document.head.appendChild(s);
 }
 
 function initMap() {
   if (map) return;
 
-  if (!window.google || !window.google.maps) {
-    // Script not ready yet — load it and set pending callback
-    window._pendingMapInit = initMap;
+  if (!window._googleMapsLoaded) {
+    window._googleMapsCallbacks.push(initMap);
     loadGoogleMapsScript();
     return;
   }
 
   document.getElementById('map-loading').style.display = 'flex';
 
-  map = new google.maps.Map(document.getElementById('map'), {
+  const AdvancedMarkerElement = window._GMarker;
+
+  map = new window._GMaps(document.getElementById('map'), {
     center: { lat: 36.28, lng: 28.15 },
     zoom: 10,
-    mapTypeId: 'hybrid',          // satellite + labels = Google Earth feel
+    mapTypeId: 'hybrid',
+    mapId: 'DEMO_MAP_ID',         // required for AdvancedMarkerElement
     mapTypeControl: true,
     mapTypeControlOptions: {
       style: google.maps.MapTypeControlStyle.DROPDOWN_MENU,
@@ -1829,25 +1842,18 @@ function initMap() {
   });
 
   // Hotel marker
-  const hotelMarker = new google.maps.Marker({
+  const hotelEl = document.createElement('div');
+  hotelEl.innerHTML = makePinHtml('🏨', '#ef8f4c', 42);
+  const hotelMarker = new AdvancedMarkerElement({
     position: { lat: 36.4412, lng: 28.2247 },
     map,
     title: 'Angela Downtown Hotel',
+    content: hotelEl,
     zIndex: 200,
-    icon: {
-      url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
-        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="48" viewBox="0 0 40 48">
-          <ellipse cx="20" cy="46" rx="8" ry="3" fill="rgba(0,0,0,.2)"/>
-          <path d="M20 0 C9 0 0 9 0 20 C0 33 20 46 20 46 C20 46 40 33 40 20 C40 9 31 0 20 0Z" fill="#ef8f4c" stroke="white" stroke-width="2.5"/>
-          <text x="20" y="25" font-size="18" text-anchor="middle" dominant-baseline="middle">🏨</text>
-        </svg>`)}`,
-      scaledSize: new google.maps.Size(40, 48),
-      anchor: new google.maps.Point(20, 46),
-    },
   });
 
   const hotelIw = new google.maps.InfoWindow({
-    content: `<div class="map-popup"><div class="map-popup-title">Angela Downtown Hotel</div><div class="map-popup-sub">📍 Jouw verblijf · Rhodos-stad</div></div>`,
+    content: `<div class="map-popup"><div class="map-popup-title">🏨 Angela Downtown Hotel</div><div class="map-popup-sub">📍 Jouw verblijf · Rhodos-stad</div></div>`,
   });
   hotelMarker.addListener('click', () => {
     if (activeInfoWindow) activeInfoWindow.close();
@@ -1861,35 +1867,36 @@ function initMap() {
   refreshMapMarkers();
 }
 
-function makeMarkerSvg(emoji, color) {
-  const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="36" height="44" viewBox="0 0 36 44">
-      <ellipse cx="18" cy="42" rx="7" ry="2.5" fill="rgba(0,0,0,.2)"/>
-      <path d="M18 0 C8 0 0 8 0 18 C0 30 18 42 18 42 C18 42 36 30 36 18 C36 8 28 0 18 0Z" fill="${color}" stroke="white" stroke-width="2"/>
-      <text x="18" y="22" font-size="16" text-anchor="middle" dominant-baseline="middle">${emoji}</text>
-    </svg>`;
-  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+function makePinHtml(emoji, color, size = 36) {
+  const s = size;
+  return `<div style="width:${s}px;height:${Math.round(s*1.2)}px;position:relative;cursor:pointer">
+    <svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${Math.round(s*1.2)}" viewBox="0 0 36 44" style="display:block;filter:drop-shadow(0 2px 4px rgba(0,0,0,.35))">
+      <path d="M18 0 C8 0 0 8 0 18 C0 30 18 43 18 43 C18 43 36 30 36 18 C36 8 28 0 18 0Z" fill="${color}" stroke="white" stroke-width="2"/>
+      <text x="18" y="21" font-size="15" text-anchor="middle" dominant-baseline="middle">${emoji}</text>
+    </svg>
+  </div>`;
 }
 
 function refreshMapMarkers() {
-  if (!map) return;
-  Object.values(markers).forEach(m => m.setMap(null));
+  if (!map || !window._GMarker) return;
+  Object.values(markers).forEach(m => { m.map = null; });
   markers = {};
+
+  const AdvancedMarkerElement = window._GMarker;
 
   state.activities.forEach(a => {
     if (!a.lat || !a.lng) return;
     const cat = CAT_COLORS[a.cat] || CAT_COLORS['Strand'];
 
-    const marker = new google.maps.Marker({
+    const pinEl = document.createElement('div');
+    pinEl.innerHTML = makePinHtml(cat.emoji, cat.a);
+
+    const marker = new AdvancedMarkerElement({
       position: { lat: a.lat, lng: a.lng },
       map,
       title: a.name,
-      draggable: true,
-      icon: {
-        url: makeMarkerSvg(cat.emoji, cat.a),
-        scaledSize: new google.maps.Size(36, 44),
-        anchor: new google.maps.Point(18, 42),
-      },
+      content: pinEl,
+      gmpDraggable: true,
       zIndex: 100,
     });
 
