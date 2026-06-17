@@ -277,6 +277,13 @@ a { color: inherit; text-decoration: none; }
   background: #f7f9fb; transition: border-color .2s; outline: none;
 }
 .url-input:focus { border-color: var(--blue); }
+.url-textarea {
+  width: 100%; padding: 12px 16px; border-radius: 14px;
+  border: 2px solid var(--border); font-size: 13px; color: var(--navy);
+  background: #f7f9fb; transition: border-color .2s; outline: none;
+  resize: none; line-height: 1.5; font-family: inherit; min-height: 90px;
+}
+.url-textarea:focus { border-color: var(--blue); }
 .url-paste-btn {
   position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
   background: var(--blue); color: white; border-radius: 8px;
@@ -969,21 +976,26 @@ async function fetchTikTokMeta(url) {
 // ADD ACTIVITY FLOW
 // ═══════════════════════════════════════════════════════════════
 
-function renderAddInput() {
+function renderAddInput(prefill = '') {
   const hasKey = !!(groqKey || localStorage.getItem('groq_api_key'));
   document.getElementById('add-sheet-body').innerHTML = `
-    <div class="url-input-wrap">
-      <input type="url" class="url-input" id="tiktok-url" placeholder="TikTok video of collectie URL..." autocomplete="off" inputmode="url">
-      <button class="url-paste-btn" onclick="pasteUrl()">Plak</button>
+    <div style="position:relative;margin-bottom:10px">
+      <textarea class="url-textarea" id="tiktok-url"
+        placeholder="Plak één of meerdere TikTok-links&#10;(één per regel, of een collectie-URL)"
+        autocomplete="off" spellcheck="false">${esc(prefill)}</textarea>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <button class="url-paste-btn" style="position:static;transform:none;flex:1;padding:9px;border-radius:10px;font-size:12px" onclick="pasteUrl()">📋 Plakken</button>
+      <button style="flex:1;padding:9px;border-radius:10px;background:var(--border);color:var(--text);font-size:12px;font-weight:700" onclick="document.getElementById('tiktok-url').value=''">✕ Wissen</button>
     </div>
     <div class="collection-banner">
-      <div class="collection-banner-icon">📚</div>
+      <div class="collection-banner-icon">💡</div>
       <div class="collection-banner-text">
-        <div class="collection-banner-title">Collectie? Ook goed!</div>
-        <div class="collection-banner-sub">Plak een collectie-link om alle video's tegelijk te analyseren</div>
+        <div class="collection-banner-title">Tip: meerdere links</div>
+        <div class="collection-banner-sub">Open je collectie op TikTok → kopieer links → plak ze hier (één per regel)</div>
       </div>
     </div>
-    <button class="analyze-btn" onclick="startAnalyze()" id="analyze-btn">
+    <button class="analyze-btn" onclick="startAnalyze()">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7z"/></svg>
       AI analyseren
     </button>
@@ -996,10 +1008,17 @@ async function pasteUrl() {
   try {
     const text = await navigator.clipboard.readText();
     const el = document.getElementById('tiktok-url');
-    if (el) el.value = text;
+    if (el) el.value = (el.value ? el.value.trim() + '\n' : '') + text.trim();
   } catch(e) {
     showToast('Plak handmatig (Ctrl+V)');
   }
+}
+
+function extractTikTokUrls(text) {
+  const urlRegex = /https?:\/\/(?:www\.|vm\.|vt\.)?tiktok\.com\/[^\s"'<>]+/gi;
+  const matches = text.match(urlRegex) || [];
+  // Deduplicate
+  return [...new Set(matches.map(u => u.replace(/[,;)]+$/, '')))];
 }
 
 function renderParsingState(steps) {
@@ -1029,11 +1048,8 @@ function isCollectionUrl(url) {
 }
 
 async function startAnalyze() {
-  const url = (document.getElementById('tiktok-url')?.value || '').trim();
-  if (!url) { showToast('Voeg eerst een TikTok URL in'); return; }
-  if (!url.includes('tiktok.com') && !url.includes('vm.tiktok')) {
-    showToast('Gebruik een TikTok link'); return;
-  }
+  const raw = (document.getElementById('tiktok-url')?.value || '').trim();
+  if (!raw) { showToast('Voeg eerst een TikTok URL in'); return; }
 
   const key = groqKey || localStorage.getItem('groq_api_key') || '';
   if (!key) {
@@ -1041,6 +1057,18 @@ async function startAnalyze() {
     openSettings(); return;
   }
 
+  const urls = extractTikTokUrls(raw);
+  if (urls.length === 0) { showToast('Geen geldige TikTok-links gevonden'); return; }
+
+  // Multiple URLs → batch flow directly
+  if (urls.length > 1) {
+    startMultiUrlAnalyze(urls);
+    return;
+  }
+
+  const url = urls[0];
+
+  // Single collection URL → try API
   if (isCollectionUrl(url)) {
     startCollectionAnalyze(url);
     return;
@@ -1160,6 +1188,16 @@ async function fetchCollectionVideos(url) {
 let batchResults = [];
 let batchSelected = new Set();
 
+async function startMultiUrlAnalyze(urls) {
+  const videos = urls.map((u, i) => ({
+    videoUrl: u, title: '', desc: '', author: '', id: String(i),
+  }));
+  document.getElementById('add-sheet-title').textContent = `${urls.length} video's analyseren`;
+  batchResults = [];
+  batchSelected = new Set();
+  await runBatchAnalyze(null, videos);
+}
+
 async function startCollectionAnalyze(collectionUrl) {
   document.getElementById('add-sheet-title').textContent = 'Collectie laden...';
   document.getElementById('add-sheet-body').innerHTML = `
@@ -1176,17 +1214,41 @@ async function startCollectionAnalyze(collectionUrl) {
   const videos = await fetchCollectionVideos(collectionUrl);
 
   if (!videos || videos.length === 0) {
-    renderError(
-      'Collectie niet gevonden',
-      'Zorg dat de collectie openbaar is. Probeer ook een individuele video-link.'
-    );
+    // Collection API failed → guide user to paste individual links
+    document.getElementById('add-sheet-title').textContent = 'Collectie niet geladen';
+    document.getElementById('add-sheet-body').innerHTML = `
+      <div class="error-state" style="margin-bottom:14px">
+        <div class="error-icon">📋</div>
+        <div class="error-title">Collectie-API werkt niet</div>
+        <div class="error-msg">TikTok collecties zijn moeilijk automatisch op te halen. Kopieer de losse video-links uit je collectie en plak ze hieronder.</div>
+      </div>
+      <div style="font-size:12px;color:var(--navy);font-weight:700;margin-bottom:6px">Hoe kopieer je de links?</div>
+      <div style="font-size:12px;color:var(--text);line-height:1.6;margin-bottom:12px">
+        1. Open je collectie op TikTok (telefoon of web)<br>
+        2. Tik op een video → Delen → Link kopiëren<br>
+        3. Herhaal voor elke video, plak alles hieronder
+      </div>
+      <div style="position:relative;margin-bottom:10px">
+        <textarea class="url-textarea" id="tiktok-url" style="min-height:110px"
+          placeholder="https://www.tiktok.com/@user/video/123&#10;https://www.tiktok.com/@user/video/456&#10;..."
+          autocomplete="off" spellcheck="false"></textarea>
+      </div>
+      <button class="analyze-btn" onclick="startAnalyze()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7z"/></svg>
+        Analyseer gekopieerde links
+      </button>
+      <div style="height:8px"></div>
+    `;
     return;
   }
 
   document.getElementById('add-sheet-title').textContent = `${videos.length} video's analyseren`;
   batchResults = [];
   batchSelected = new Set();
+  await runBatchAnalyze(collectionUrl, videos);
+}
 
+async function runBatchAnalyze(sourceUrl, videos) {
   renderBatchProgress(videos, 0);
 
   for (let i = 0; i < videos.length; i++) {
@@ -1194,7 +1256,7 @@ async function startCollectionAnalyze(collectionUrl) {
     updateBatchProgress(i, videos.length, v.title || `Video ${i + 1}`);
 
     try {
-      const prompt = buildPrompt(v.videoUrl || collectionUrl, v.title, v.desc, v.author);
+      const prompt = buildPrompt(v.videoUrl || sourceUrl || '', v.title, v.desc, v.author);
       const response = await callGroq(prompt);
       const parsed = parseGroqJson(response);
 
@@ -1213,7 +1275,7 @@ async function startCollectionAnalyze(collectionUrl) {
       const cat = CAT_COLORS[parsed.cat] || CAT_COLORS['Strand'];
       const act = {
         id: `batch_${Date.now()}_${i}`,
-        url: v.videoUrl || collectionUrl,
+        url: v.videoUrl || sourceUrl || '',
         tk: v.author,
         name: parsed.name,
         cat: parsed.cat, catA: cat.a, catB: cat.b,
