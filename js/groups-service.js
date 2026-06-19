@@ -1,4 +1,4 @@
-import { supabase } from './supabase-client.js';
+import { getSupabase } from './supabase-client.js';
 
 function generateShareCode() {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -11,35 +11,35 @@ function generateShareCode() {
 
 export const groupsService = {
   async createGroup(tripId, groupName) {
-    const user = (await supabase.auth.getSession()).data.session?.user;
-    if (!user) throw new Error('Not authenticated');
+    const sb = await getSupabase();
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session?.user) throw new Error('Not authenticated');
 
     const shareCode = generateShareCode();
 
-    const { data, error } = await supabase
-      .from('groups')
+    const { data, error } = await sb
+      .from('triply_groups')
       .insert([{
         trip_id: tripId,
         name: groupName,
         share_code: shareCode,
-        created_by: user.id,
+        created_by: session.user.id,
       }])
       .select()
       .single();
 
     if (error) throw error;
 
-    // Add creator to group members
-    await supabase
-      .from('group_members')
-      .insert([{ group_id: data.id, user_id: user.id }]);
+    await sb.from('triply_group_members')
+      .insert([{ group_id: data.id, user_id: session.user.id }]);
 
     return data;
   },
 
   async getGroupsByTrip(tripId) {
-    const { data, error } = await supabase
-      .from('groups')
+    const sb = await getSupabase();
+    const { data, error } = await sb
+      .from('triply_groups')
       .select('*')
       .eq('trip_id', tripId)
       .order('created_at', { ascending: false });
@@ -48,54 +48,41 @@ export const groupsService = {
     return data || [];
   },
 
-  async getGroupById(groupId) {
-    const { data, error } = await supabase
-      .from('groups')
-      .select('*')
-      .eq('id', groupId)
-      .single();
-
-    if (error) throw error;
-    return data;
-  },
-
   async joinGroupByCode(shareCode) {
-    const user = (await supabase.auth.getSession()).data.session?.user;
-    if (!user) throw new Error('Not authenticated');
+    const sb = await getSupabase();
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session?.user) throw new Error('Not authenticated');
 
-    // Find group by share code
-    const { data: group, error: groupError } = await supabase
-      .from('groups')
+    const { data: group, error: groupError } = await sb
+      .from('triply_groups')
       .select('*')
       .eq('share_code', shareCode)
       .single();
 
-    if (groupError) throw new Error('Share code not found');
+    if (groupError) throw new Error('Share code niet gevonden');
 
-    // Check if already member
-    const { data: existing } = await supabase
-      .from('group_members')
+    const { data: existing } = await sb
+      .from('triply_group_members')
       .select('id')
       .eq('group_id', group.id)
-      .eq('user_id', user.id)
-      .single();
+      .eq('user_id', session.user.id)
+      .maybeSingle();
 
-    if (existing) throw new Error('Already member of this group');
+    if (existing) throw new Error('Je bent al lid van deze groep');
 
-    // Add to group
-    const { error: joinError } = await supabase
-      .from('group_members')
-      .insert([{ group_id: group.id, user_id: user.id }]);
+    const { error: joinError } = await sb
+      .from('triply_group_members')
+      .insert([{ group_id: group.id, user_id: session.user.id }]);
 
     if (joinError) throw joinError;
-
     return group;
   },
 
   async getGroupMembers(groupId) {
-    const { data, error } = await supabase
-      .from('group_members')
-      .select('user_id, joined_at, users(id, email, username)')
+    const sb = await getSupabase();
+    const { data, error } = await sb
+      .from('triply_group_members')
+      .select('user_id, joined_at, triply_users(id, email, username)')
       .eq('group_id', groupId)
       .order('joined_at', { ascending: true });
 
@@ -104,23 +91,11 @@ export const groupsService = {
   },
 
   async deleteGroup(groupId) {
-    const { error } = await supabase
-      .from('groups')
+    const sb = await getSupabase();
+    const { error } = await sb
+      .from('triply_groups')
       .delete()
       .eq('id', groupId);
-
     if (error) throw error;
-  },
-
-  async updateGroup(groupId, updates) {
-    const { data, error } = await supabase
-      .from('groups')
-      .update(updates)
-      .eq('id', groupId)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
   }
 };

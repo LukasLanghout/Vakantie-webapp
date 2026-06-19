@@ -1,45 +1,43 @@
-import { supabase, getCurrentUser } from './supabase-client.js';
+import { getSupabase } from './supabase-client.js';
 
 export const authService = {
   async signUp(email, password, username) {
-    const { data, error } = await supabase.auth.signUp({
+    const sb = await getSupabase();
+    const { data, error } = await sb.auth.signUp({
       email,
       password,
       options: { data: { username } }
     });
     if (error) throw error;
 
-    // Create user profile
-    const { error: profileError } = await supabase
-      .from('users')
-      .insert([{ id: data.user.id, email, username }]);
-    if (profileError) throw profileError;
+    await sb.from('triply_users')
+      .upsert([{ id: data.user.id, email, username }], { onConflict: 'id' });
 
     return data.user;
   },
 
   async signIn(email, password) {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    const sb = await getSupabase();
+    const { data, error } = await sb.auth.signInWithPassword({ email, password });
     if (error) throw error;
     return data.user;
   },
 
   async signOut() {
-    const { error } = await supabase.auth.signOut();
+    const sb = await getSupabase();
+    const { error } = await sb.auth.signOut();
     if (error) throw error;
   },
 
   async getCurrentUser() {
-    return getCurrentUser();
+    const sb = await getSupabase();
+    const { data: { session } } = await sb.auth.getSession();
+    return session?.user || null;
   },
 
   async resetPassword(email) {
-    const { error } = await supabase.auth.resetPasswordForEmail(email);
-    if (error) throw error;
-  },
-
-  async updatePassword(newPassword) {
-    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    const sb = await getSupabase();
+    const { error } = await sb.auth.resetPasswordForEmail(email);
     if (error) throw error;
   }
 };

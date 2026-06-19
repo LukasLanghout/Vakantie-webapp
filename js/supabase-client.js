@@ -1,23 +1,29 @@
-// Supabase client initialization
-// Usage: import { supabase } from './supabase-client.js';
+// Supabase client initialization — credentials loaded from /api/config at runtime
+// Set SUPABASE_URL and SUPABASE_ANON_KEY in Vercel environment variables.
 
-const SUPABASE_URL = import.meta.env?.VITE_SUPABASE_URL || localStorage.getItem('sb_url') || '';
-const SUPABASE_KEY = import.meta.env?.VITE_SUPABASE_ANON_KEY || localStorage.getItem('sb_key') || '';
+let _client = null;
 
-export const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+export async function getSupabase() {
+  if (_client) return _client;
+
+  const r = await fetch('/api/config');
+  if (!r.ok) throw new Error('Kon configuratie niet laden');
+  const cfg = await r.json();
+
+  if (!cfg.supabaseUrl || !cfg.supabaseKey) {
+    throw new Error('Supabase niet geconfigureerd. Voeg SUPABASE_URL en SUPABASE_ANON_KEY toe als Vercel environment variabelen.');
+  }
+
+  _client = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey);
+  return _client;
+}
 
 export async function getCurrentUser() {
   try {
-    const { data: { session } } = await supabase.auth.getSession();
+    const client = await getSupabase();
+    const { data: { session } } = await client.auth.getSession();
     return session?.user || null;
   } catch(e) {
-    console.error('Error getting user:', e);
     return null;
   }
-}
-
-export function onAuthStateChange(callback) {
-  return supabase.auth.onAuthStateChange((event, session) => {
-    callback(session?.user || null, event);
-  });
 }

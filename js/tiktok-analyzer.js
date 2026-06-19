@@ -36,12 +36,14 @@ export const tiktokAnalyzer = {
   },
 
   async callGroq(prompt, apiKey) {
-    if (!apiKey) throw new Error('Groq API key missing');
+    const key = apiKey || localStorage.getItem('groq_api_key') || '';
+    if (!key) throw new Error('Groq API key missing — stel in via ⚙️ Instellingen');
+    apiKey = key;
 
     const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
+        'Authorization': `Bearer ${key}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({

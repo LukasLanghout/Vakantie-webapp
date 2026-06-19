@@ -365,10 +365,6 @@ export const uiPlanner = {
     }
 
     const apiKey = localStorage.getItem('groq_api_key') || '';
-    if (!apiKey) {
-      alert('Groq API key niet ingesteld. Stel deze in via instellingen.');
-      return;
-    }
 
     // Show progress UI
     const sheetBody = document.getElementById('add-sheet-body');

@@ -1,23 +1,24 @@
-import { supabase } from './supabase-client.js';
+import { getSupabase } from './supabase-client.js';
 
 export const tripsService = {
   async createTrip(name, destination, startDate, endDate, hotelName, hotelLat, hotelLng) {
-    const user = (await supabase.auth.getSession()).data.session?.user;
-    if (!user) throw new Error('Not authenticated');
+    const sb = await getSupabase();
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session?.user) throw new Error('Not authenticated');
 
-    const { data, error } = await supabase
-      .from('trips')
+    const { data, error } = await sb
+      .from('triply_trips')
       .insert([{
-        owner_id: user.id,
+        owner_id: session.user.id,
         name,
         destination,
         start_date: startDate,
         end_date: endDate,
         hotel_name: hotelName,
-        hotel_lat: hotelLat,
-        hotel_lng: hotelLng,
-        location_lat: hotelLat,
-        location_lng: hotelLng,
+        hotel_lat: hotelLat || 0,
+        hotel_lng: hotelLng || 0,
+        location_lat: hotelLat || 0,
+        location_lng: hotelLng || 0,
       }])
       .select()
       .single();
@@ -27,13 +28,14 @@ export const tripsService = {
   },
 
   async getUserTrips() {
-    const user = (await supabase.auth.getSession()).data.session?.user;
-    if (!user) throw new Error('Not authenticated');
+    const sb = await getSupabase();
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session?.user) throw new Error('Not authenticated');
 
-    const { data, error } = await supabase
-      .from('trips')
+    const { data, error } = await sb
+      .from('triply_trips')
       .select('*')
-      .eq('owner_id', user.id)
+      .eq('owner_id', session.user.id)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -41,8 +43,9 @@ export const tripsService = {
   },
 
   async getTripById(tripId) {
-    const { data, error } = await supabase
-      .from('trips')
+    const sb = await getSupabase();
+    const { data, error } = await sb
+      .from('triply_trips')
       .select('*')
       .eq('id', tripId)
       .single();
@@ -52,8 +55,9 @@ export const tripsService = {
   },
 
   async updateTrip(tripId, updates) {
-    const { data, error } = await supabase
-      .from('trips')
+    const sb = await getSupabase();
+    const { data, error } = await sb
+      .from('triply_trips')
       .update(updates)
       .eq('id', tripId)
       .select()
@@ -64,8 +68,9 @@ export const tripsService = {
   },
 
   async deleteTrip(tripId) {
-    const { error } = await supabase
-      .from('trips')
+    const sb = await getSupabase();
+    const { error } = await sb
+      .from('triply_trips')
       .delete()
       .eq('id', tripId);
 
@@ -77,19 +82,17 @@ export const tripsService = {
     const end = new Date(endDate);
     const days = [];
     const current = new Date(start);
-
     let n = 1;
+
     while (current <= end) {
       const day = current.getDate();
       const month = current.toLocaleString('nl-NL', { month: 'short' });
       const weekday = current.toLocaleString('nl-NL', { weekday: 'long' });
-      const date = current.toLocaleString('nl-NL', { year: 'numeric', month: '2-digit', day: '2-digit' });
 
       days.push({
         n,
         date: `${day} ${month}`,
         label: `${weekday.charAt(0).toUpperCase() + weekday.slice(1)} ${day} ${month}`,
-        fullDate: date,
       });
 
       current.setDate(current.getDate() + 1);
