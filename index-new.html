@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Triply ✈️</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Mulish:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+  <style>
+    /* ─── Reset & Base ─────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --blue: #2f7fc7; --navy: #11314a; --teal: #57c0d8; --green: #3aa08a;
+      --orange: #ef8f4c; --bg: #fbfafa; --border: #eef3f6; --text: #708496;
+      --dark: #1a2d3d; --white: #fff; --red: #e05c5c;
+      --radius: 20px; --shadow: 0 8px 32px rgba(17,49,74,.13);
+    }
+    html, body { height: 100%; background: #e8eef3; font-family: 'Mulish', sans-serif; }
+    button { font-family: inherit; cursor: pointer; border: none; background: none; }
+    input, textarea { font-family: inherit; }
+    a { color: inherit; text-decoration: none; }
+
+    /* ─── Phone Container ───────────────────────────────────────── */
+    .phone-wrap {
+      display: flex; justify-content: center; align-items: center;
+      min-height: 100vh; padding: 20px;
+    }
+    .phone {
+      width: 393px; height: 852px; background: var(--bg);
+      border-radius: 48px; overflow: hidden; position: relative;
+      box-shadow: 0 30px 80px rgba(0,0,0,.3), inset 0 0 0 1px rgba(255,255,255,.2);
+      display: flex; flex-direction: column;
+    }
+    @media (max-width: 430px) {
+      .phone-wrap { padding: 0; align-items: flex-start; }
+      .phone { width: 100vw; height: 100dvh; border-radius: 0; }
+    }
+
+    /* ─── Status Bar ────────────────────────────────────────────── */
+    .status-bar {
+      height: 44px; background: var(--navy); display: flex;
+      align-items: center; justify-content: space-between;
+      padding: 0 28px; flex-shrink: 0; position: relative; z-index: 100;
+    }
+    .status-bar .time { font-size: 15px; font-weight: 700; color: var(--white); }
+    .status-icons { display: flex; gap: 6px; align-items: center; }
+    .status-icons svg { fill: white; }
+  </style>
+</head>
+<body>
+  <!-- App will be loaded here by router.js -->
+  <div id="app">
+    <div class="phone-wrap">
+      <div class="phone">
+        <div class="status-bar">
+          <span class="time" id="clock">9:41</span>
+          <div class="status-icons">
+            <svg width="16" height="12" viewBox="0 0 16 12"><rect x="0" y="3" width="3" height="9" rx="1" opacity=".4"/><rect x="4" y="2" width="3" height="10" rx="1" opacity=".6"/><rect x="8" y="0" width="3" height="12" rx="1" opacity=".8"/><rect x="12" y="0" width="3" height="12" rx="1"/></svg>
+            <svg width="15" height="12" viewBox="0 0 15 12"><path d="M7.5 2.5c2.8 0 5.3 1.1 7.1 2.9L7.5 12 .4 5.4C2.2 3.6 4.7 2.5 7.5 2.5z" opacity=".4"/><path d="M7.5 5c1.6 0 3.1.7 4.2 1.7L7.5 12l-4.2-5.3C4.4 5.7 5.9 5 7.5 5z" opacity=".7"/><path d="M7.5 7.5c.9 0 1.7.4 2.2 1L7.5 12l-2.2-3.5c.5-.6 1.3-1 2.2-1z"/></svg>
+            <svg width="25" height="12" viewBox="0 0 25 12"><rect x="0" y="1" width="22" height="10" rx="3" stroke="white" stroke-width="1.5" fill="none" opacity=".4"/><rect x="23" y="4" width="2" height="4" rx="1" fill="white" opacity=".4"/><rect x="1.5" y="2.5" width="17" height="7" rx="2" fill="white"/></svg>
+          </div>
+        </div>
+        <div style="flex: 1; display: flex; align-items: center; justify-content: center;">
+          <div style="text-align: center;">
+            <div style="font-size: 48px; margin-bottom: 16px; animation: bounce 1s infinite;">✈️</div>
+            <div style="font-size: 14px; color: var(--text);">Laden...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <script type="module">
+    // Import and initialize router
+    import { router } from './js/router.js';
+    // Initialize is called automatically
+  </script>
+
+  <style>
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+  </style>
+</body>
+</html>
