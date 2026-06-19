@@ -101,12 +101,24 @@ async function initSupabase() {
   try {
     const r = await fetch('/api/config');
     const cfg = await r.json();
-    if (!cfg.supabaseUrl || !cfg.supabaseKey) throw new Error('Config missing');
+    if (!cfg.supabaseUrl || !cfg.supabaseKey) {
+      document.getElementById('auth-message').innerHTML = `
+        <div class="error" style="text-align:left;line-height:1.6">
+          ⚠️ <b>App niet geconfigureerd.</b><br>
+          Ga naar <b>vercel.com → vakantie-webapp → Settings → Environment Variables</b> en voeg toe:<br><br>
+          <code style="font-size:11px;display:block;background:#f5f5f5;padding:8px;border-radius:6px;margin-top:4px">
+            SUPABASE_URL = https://ibtgllkulueoglqzawas.supabase.co<br>
+            SUPABASE_ANON_KEY = eyJhbGci...
+          </code><br>
+          Daarna opnieuw deployen.
+        </div>`;
+      return;
+    }
     _sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey);
     await checkAuth();
   } catch(e) {
     console.error('Supabase init failed:', e);
-    showMessage('Fout bij laden: stel SUPABASE_URL en SUPABASE_ANON_KEY in als Vercel env vars', 'error');
+    showMessage('Fout bij laden configuratie: ' + e.message, 'error');
   }
 }
 
