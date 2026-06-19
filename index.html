@@ -6,23 +6,8 @@
 <title>Rhodos Planner 🌊</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Mulish:wght@400;600;700&display=swap" rel="stylesheet">
-<script>
-// Google Maps key — split to avoid secret scanner
-window._gmk = 'AIzaSyAW8cvOT' + '4J5YrMnJL7SKgfRWBaZQtF-AXs';
-
-// Official Google Maps bootstrap loader (async, best-practice)
-window._googleMapsLoaded = false;
-window._googleMapsCallbacks = [];
-window._onGoogleMapsReady = async function() {
-  const { Map } = await google.maps.importLibrary('maps');
-  const { AdvancedMarkerElement } = await google.maps.importLibrary('marker');
-  window._GMaps = Map;
-  window._GMarker = AdvancedMarkerElement;
-  window._googleMapsLoaded = true;
-  window._googleMapsCallbacks.forEach(fn => fn());
-  window._googleMapsCallbacks = [];
-};
-</script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
 /* ─── Reset & Base ─────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -477,27 +462,19 @@ a { color: inherit; text-decoration: none; }
   width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
   font-size: 18px; border: 3px solid white; box-shadow: 0 3px 12px rgba(0,0,0,.3);
 }
-/* Google Maps popup styling */
-.gm-style .gm-style-iw-c {
+.leaflet-popup-content-wrapper {
   border-radius: 14px !important;
   box-shadow: 0 4px 20px rgba(17,49,74,.15) !important;
-  padding: 0 !important;
 }
-.gm-style .gm-style-iw-d { overflow: hidden !important; }
-.gm-style .gm-style-iw-tc::after { display: none; }
-.map-popup { padding: 10px 12px; min-width: 150px; }
 .map-popup-title {
   font-family: 'Baloo 2', sans-serif; font-size: 14px; font-weight: 700; color: var(--navy);
 }
 .map-popup-sub { font-size: 11px; color: var(--text); margin-top: 2px; }
 .map-popup-btn {
-  margin-top: 8px; background: var(--blue); color: white; border: none;
-  border-radius: 8px; padding: 5px 12px; font-size: 11px; font-weight: 700;
-  cursor: pointer; font-family: 'Mulish', sans-serif; width: 100%;
+  margin-top: 6px; background: var(--blue); color: white; border: none;
+  border-radius: 8px; padding: 4px 10px; font-size: 11px; font-weight: 700;
+  cursor: pointer; font-family: 'Mulish', sans-serif;
 }
-/* Hide default Google Maps UI clutter */
-.gm-bundled-control, .gmnoprint a, .gmnoprint span, .gm-style-cc { display: none !important; }
-.gm-bundled-control-on-bottom { display: block !important; }
 
 /* Scrollbar global */
 .tab-panel { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
@@ -1797,129 +1774,61 @@ function deleteActivity(id) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// MAP (Google Maps)
+// MAP (Leaflet + OpenStreetMap)
 // ═══════════════════════════════════════════════════════════════
-
-let activeInfoWindow = null;
-
-function loadGoogleMapsScript() {
-  if (document.getElementById('gmaps-script')) return;
-  // Use the official async bootstrap loader pattern
-  const s = document.createElement('script');
-  s.id = 'gmaps-script';
-  s.src = `https://maps.googleapis.com/maps/api/js?key=${window._gmk}&callback=_onGoogleMapsReady&loading=async&language=nl&v=weekly`;
-  document.head.appendChild(s);
-}
 
 function initMap() {
   if (map) return;
-
-  if (!window._googleMapsLoaded) {
-    window._googleMapsCallbacks.push(initMap);
-    loadGoogleMapsScript();
-    return;
-  }
-
   document.getElementById('map-loading').style.display = 'flex';
 
-  const AdvancedMarkerElement = window._GMarker;
-
-  map = new window._GMaps(document.getElementById('map'), {
-    center: { lat: 36.28, lng: 28.15 },
-    zoom: 10,
-    mapTypeId: 'hybrid',
-    mapId: 'DEMO_MAP_ID',         // required for AdvancedMarkerElement
-    mapTypeControl: true,
-    mapTypeControlOptions: {
-      style: google.maps.MapTypeControlStyle.DROPDOWN_MENU,
-      mapTypeIds: ['hybrid', 'satellite', 'roadmap', 'terrain'],
-    },
-    streetViewControl: false,
-    fullscreenControl: false,
-    zoomControl: true,
-    gestureHandling: 'greedy',
-    tilt: 0,
+  map = L.map('map', {
+    center: [36.28, 28.15], zoom: 10,
+    zoomControl: true, attributionControl: false,
   });
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+  }).addTo(map);
 
   // Hotel marker
-  const hotelEl = document.createElement('div');
-  hotelEl.innerHTML = makePinHtml('🏨', '#ef8f4c', 42);
-  const hotelMarker = new AdvancedMarkerElement({
-    position: { lat: 36.4412, lng: 28.2247 },
-    map,
-    title: 'Angela Downtown Hotel',
-    content: hotelEl,
-    zIndex: 200,
+  const hotelIcon = L.divIcon({
+    html: `<div style="background:#ef8f4c;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;border:3px solid white;box-shadow:0 3px 12px rgba(0,0,0,.3)">🏨</div>`,
+    className: '', iconSize: [36, 36], iconAnchor: [18, 18],
   });
-
-  const hotelIw = new google.maps.InfoWindow({
-    content: `<div class="map-popup"><div class="map-popup-title">🏨 Angela Downtown Hotel</div><div class="map-popup-sub">📍 Jouw verblijf · Rhodos-stad</div></div>`,
-  });
-  hotelMarker.addListener('click', () => {
-    if (activeInfoWindow) activeInfoWindow.close();
-    hotelIw.open(map, hotelMarker);
-    activeInfoWindow = hotelIw;
-  });
+  L.marker([36.4412, 28.2247], { icon: hotelIcon })
+    .addTo(map)
+    .bindPopup(`<div class="map-popup-title">Angela Downtown Hotel</div><div class="map-popup-sub">📍 Jouw verblijf · Rhodos-stad</div>`);
 
   document.getElementById('map-loading').style.display = 'none';
   document.getElementById('map-legend').style.display = 'block';
 
   refreshMapMarkers();
-}
-
-function makePinHtml(emoji, color, size = 36) {
-  const s = size;
-  return `<div style="width:${s}px;height:${Math.round(s*1.2)}px;position:relative;cursor:pointer">
-    <svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${Math.round(s*1.2)}" viewBox="0 0 36 44" style="display:block;filter:drop-shadow(0 2px 4px rgba(0,0,0,.35))">
-      <path d="M18 0 C8 0 0 8 0 18 C0 30 18 43 18 43 C18 43 36 30 36 18 C36 8 28 0 18 0Z" fill="${color}" stroke="white" stroke-width="2"/>
-      <text x="18" y="21" font-size="15" text-anchor="middle" dominant-baseline="middle">${emoji}</text>
-    </svg>
-  </div>`;
+  setTimeout(() => map.invalidateSize(), 100);
 }
 
 function refreshMapMarkers() {
-  if (!map || !window._GMarker) return;
-  Object.values(markers).forEach(m => { m.map = null; });
+  if (!map) return;
+  Object.values(markers).forEach(m => map.removeLayer(m));
   markers = {};
-
-  const AdvancedMarkerElement = window._GMarker;
 
   state.activities.forEach(a => {
     if (!a.lat || !a.lng) return;
     const cat = CAT_COLORS[a.cat] || CAT_COLORS['Strand'];
-
-    const pinEl = document.createElement('div');
-    pinEl.innerHTML = makePinHtml(cat.emoji, cat.a);
-
-    const marker = new AdvancedMarkerElement({
-      position: { lat: a.lat, lng: a.lng },
-      map,
-      title: a.name,
-      content: pinEl,
-      gmpDraggable: true,
-      zIndex: 100,
+    const icon = L.divIcon({
+      html: `<div style="background:${cat.a};width:32px;height:32px;border-radius:50% 50% 50% 0;display:flex;align-items:center;justify-content:center;font-size:14px;border:2.5px solid white;box-shadow:0 2px 8px rgba(0,0,0,.3);transform:rotate(-45deg)"><span style="transform:rotate(45deg)">${cat.emoji}</span></div>`,
+      className: '', iconSize: [32, 32], iconAnchor: [10, 32],
     });
+    const m = L.marker([a.lat, a.lng], { icon, draggable: true })
+      .addTo(map)
+      .bindPopup(`<div class="map-popup-title">${esc(a.name)}</div><div class="map-popup-sub">📍 ${esc(a.area)} · ${esc(a.priceLabel)}</div><div style="margin-top:6px"><button class="map-popup-btn" onclick="window.openDetail('${a.id}')">Details →</button></div>`);
 
-    const iw = new google.maps.InfoWindow({
-      content: `<div class="map-popup">
-        <div class="map-popup-title">${esc(a.name)}</div>
-        <div class="map-popup-sub">📍 ${esc(a.area)} · ${esc(a.priceLabel)}</div>
-        <button class="map-popup-btn" onclick="window.openDetail('${a.id}')">Details bekijken →</button>
-      </div>`,
-    });
-
-    marker.addListener('click', () => {
-      if (activeInfoWindow) activeInfoWindow.close();
-      iw.open(map, marker);
-      activeInfoWindow = iw;
-    });
-
-    marker.addListener('dragend', (e) => {
+    m.on('dragend', function(e) {
+      const pos = e.target.getLatLng();
       const act = state.activities.find(x => x.id === a.id);
-      if (act) { act.lat = e.latLng.lat(); act.lng = e.latLng.lng(); saveState(); }
+      if (act) { act.lat = pos.lat; act.lng = pos.lng; saveState(); }
     });
 
-    markers[a.id] = marker;
+    markers[a.id] = m;
   });
 }
 
@@ -1935,7 +1844,7 @@ function switchTab(name) {
   document.getElementById(`panel-${name}`).classList.add('active');
 
   if (name === 'kaart') {
-    setTimeout(() => initMap(), 50);
+    setTimeout(() => { initMap(); if (map) map.invalidateSize(); }, 50);
   }
 }
 
@@ -2082,8 +1991,6 @@ if (state.activities.length === 0) addDemoData();
 updateClock();
 setInterval(updateClock, 30000);
 renderAll();
-// Pre-load Google Maps script in background so it's ready when user taps Kaart
-loadGoogleMapsScript();
 </script>
 </body>
 </html>
