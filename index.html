@@ -49,10 +49,10 @@ input:focus { outline: none; border-color: var(--blue); }
       <div class="subtitle">Plan je reis samen met vrienden</div>
       <div id="auth-message"></div>
       <input type="email" id="auth-email" placeholder="Email" autocomplete="email">
-      <input type="password" id="auth-password" placeholder="Wachtwoord" autocomplete="password">
-      <button class="btn btn-primary" onclick="handleAuth()">Inloggen</button>
+      <input type="password" id="auth-password" placeholder="Wachtwoord" autocomplete="current-password">
+      <button id="btn-submit" class="btn btn-primary" onclick="handleAuth()">Inloggen</button>
       <div class="divider">of</div>
-      <button class="btn btn-primary" onclick="toggleSignup()" style="background:var(--border);color:var(--text);">Nieuw account</button>
+      <button id="btn-toggle" class="btn" onclick="toggleSignup()" style="background:var(--border);color:var(--text);width:100%;padding:14px;border-radius:10px;font-weight:700;font-size:15px;">Nieuw account</button>
     </div>
   </div>
 
@@ -91,70 +91,57 @@ input:focus { outline: none; border-color: var(--blue); }
 </div>
 
 <script>
-// Global state
-let supabase = null;
-let currentUser = null;
-let currentTrip = null;
-let isSignup = false;
+// Use _sb to avoid conflict with window.supabase from CDN
+var _sb = null;
+var currentUser = null;
+var currentTrip = null;
+var isSignup = false;
 
-// Initialize Supabase
 async function initSupabase() {
   try {
     const r = await fetch('/api/config');
     const cfg = await r.json();
     if (!cfg.supabaseUrl || !cfg.supabaseKey) throw new Error('Config missing');
-    supabase = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey);
+    _sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey);
     await checkAuth();
   } catch(e) {
     console.error('Supabase init failed:', e);
-    showMessage('Fout bij laden configuratie', 'error');
+    showMessage('Fout bij laden: stel SUPABASE_URL en SUPABASE_ANON_KEY in als Vercel env vars', 'error');
   }
 }
 
-// Check if user is logged in
 async function checkAuth() {
-  if (!supabase) return;
-  const { data: { session } } = await supabase.auth.getSession();
+  if (!_sb) return;
+  const { data: { session } } = await _sb.auth.getSession();
   currentUser = session?.user || null;
   if (currentUser) showTripSelector();
   else showAuthScreen();
 }
 
-// Auth
 async function handleAuth() {
   const email = document.getElementById('auth-email').value.trim();
   const password = document.getElementById('auth-password').value.trim();
-
-  if (!email || !password) {
-    showMessage('Voer email en wachtwoord in', 'error');
-    return;
-  }
+  if (!email || !password) { showMessage('Voer email en wachtwoord in', 'error'); return; }
 
   const fn = isSignup ? 'signUp' : 'signInWithPassword';
-  const { data, error } = await supabase.auth[fn]({ email, password });
-
-  if (error) {
-    showMessage(error.message, 'error');
-    return;
-  }
+  const { data, error } = await _sb.auth[fn]({ email, password });
+  if (error) { showMessage(error.message, 'error'); return; }
 
   currentUser = data.user;
-  if (isSignup) {
-    await supabase.from('triply_users')
-      .upsert([{ id: data.user.id, email }], { onConflict: 'id' });
+  if (isSignup && currentUser) {
+    await _sb.from('triply_users').upsert([{ id: currentUser.id, email }], { onConflict: 'id' });
   }
   showMessage('Welkom! 🎉', 'success');
-  setTimeout(() => showTripSelector(), 1000);
+  setTimeout(() => showTripSelector(), 800);
 }
 
 async function handleLogout() {
-  await supabase.auth.signOut();
+  await _sb.auth.signOut();
   currentUser = null;
   currentTrip = null;
   showAuthScreen();
 }
 
-// UI Navigation
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
@@ -165,13 +152,15 @@ function showAuthScreen() {
   showScreen('auth-screen');
   document.getElementById('auth-email').value = '';
   document.getElementById('auth-password').value = '';
-  document.querySelector('[onclick="toggleSignup()"]').textContent = 'Nieuw account';
+  document.getElementById('auth-message').innerHTML = '';
+  document.getElementById('btn-toggle').textContent = 'Nieuw account';
+  document.getElementById('btn-submit').textContent = 'Inloggen';
 }
 
 function toggleSignup() {
   isSignup = !isSignup;
-  document.querySelector('[onclick="toggleSignup()"]').textContent = isSignup ? 'Inloggen' : 'Nieuw account';
-  document.querySelector('.btn-primary').textContent = isSignup ? 'Account aanmaken' : 'Inloggen';
+  document.getElementById('btn-toggle').textContent = isSignup ? 'Al een account? Inloggen' : 'Nieuw account';
+  document.getElementById('btn-submit').textContent = isSignup ? 'Account aanmaken' : 'Inloggen';
 }
 
 function showTripSelector() {
@@ -179,9 +168,7 @@ function showTripSelector() {
   loadTrips();
 }
 
-function showCreateTrip() {
-  showScreen('create-trip-screen');
-}
+function showCreateTrip() { showScreen('create-trip-screen'); }
 
 async function createTrip() {
   const name = document.getElementById('trip-name').value.trim();
@@ -190,71 +177,103 @@ async function createTrip() {
   const end = document.getElementById('trip-end').value;
   const hotel = document.getElementById('trip-hotel').value.trim();
 
-  if (!name || !destination || !start || !end) {
-    showMessage('Vul alle velden in', 'error');
-    return;
-  }
+  if (!name || !destination || !start || !end) { showMessage('Vul alle velden in', 'error'); return; }
 
-  const { data, error } = await supabase
-    .from('triply_trips')
-    .insert([{
-      owner_id: currentUser.id,
-      name,
-      destination,
-      start_date: start,
-      end_date: end,
-      hotel_name: hotel,
-      location_lat: 0,
-      location_lng: 0,
-      hotel_lat: 0,
-      hotel_lng: 0,
-    }])
-    .select()
-    .single();
+  const { error } = await _sb.from('triply_trips').insert([{
+    owner_id: currentUser.id, name, destination,
+    start_date: start, end_date: end, hotel_name: hotel,
+    location_lat: 0, location_lng: 0, hotel_lat: 0, hotel_lng: 0,
+  }]);
 
-  if (error) {
-    showMessage(error.message, 'error');
-    return;
-  }
-
-  showMessage('Reis aangemaakt!', 'success');
-  setTimeout(() => showTripSelector(), 1000);
+  if (error) { showMessage(error.message, 'error'); return; }
+  showMessage('Reis aangemaakt! ✈️', 'success');
+  setTimeout(() => showTripSelector(), 800);
 }
 
 async function loadTrips() {
-  const { data, error } = await supabase
-    .from('triply_trips')
-    .select('*')
-    .eq('owner_id', currentUser.id)
-    .order('created_at', { ascending: false });
+  document.getElementById('trips-list').innerHTML = '<div style="text-align:center;padding:20px"><div class="spinner"></div></div>';
+  const { data, error } = await _sb.from('triply_trips')
+    .select('*').eq('owner_id', currentUser.id).order('created_at', { ascending: false });
 
-  if (error) {
-    showMessage(error.message, 'error');
-    return;
-  }
+  if (error) { document.getElementById('trips-list').innerHTML = `<div class="error">${error.message}</div>`; return; }
 
-  const html = (data || []).map(t => `
-    <div style="padding:12px;border:1px solid var(--border);border-radius:10px;margin-bottom:10px;cursor:pointer;" onclick="selectTrip('${t.id}')">
-      <div style="font-weight:700;color:var(--navy)">${t.name}</div>
-      <div style="font-size:12px;color:var(--text)">${t.destination} • ${t.start_date} tot ${t.end_date}</div>
+  document.getElementById('trips-list').innerHTML = (data || []).map(t => `
+    <div style="padding:14px;border:1.5px solid var(--border);border-radius:12px;margin-bottom:10px;cursor:pointer;transition:border-color .2s"
+         onmouseenter="this.style.borderColor='var(--blue)'" onmouseleave="this.style.borderColor='var(--border)'"
+         onclick="selectTrip('${t.id}')">
+      <div style="font-weight:700;color:var(--navy);margin-bottom:3px">${t.name}</div>
+      <div style="font-size:12px;color:var(--text)">${t.destination} &nbsp;•&nbsp; ${t.start_date} t/m ${t.end_date}</div>
     </div>
-  `).join('');
-
-  document.getElementById('trips-list').innerHTML = html || '<div style="color:var(--text);text-align:center;padding:20px">Geen reizen yet</div>';
+  `).join('') || '<div style="color:var(--text);text-align:center;padding:24px">Nog geen reizen. Maak er een aan! 👇</div>';
 }
 
-function selectTrip(tripId) {
-  // TODO: laad trip en toon planner
-  showMessage('Trip selected: ' + tripId, 'success');
+async function selectTrip(tripId) {
+  const { data, error } = await _sb.from('triply_trips').select('*').eq('id', tripId).single();
+  if (error) { showMessage(error.message, 'error'); return; }
+  currentTrip = data;
+  document.getElementById('trip-title').textContent = `${data.name} — ${data.destination}`;
+  document.getElementById('planner-content').innerHTML = `
+    <p style="color:var(--text);margin-bottom:16px">${data.start_date} t/m ${data.end_date} · ${data.hotel_name || ''}</p>
+    <div id="group-section"></div>
+  `;
+  showScreen('planner-screen');
+  loadGroups(tripId);
+}
+
+async function loadGroups(tripId) {
+  const { data } = await _sb.from('triply_groups').select('*').eq('trip_id', tripId);
+  const el = document.getElementById('group-section');
+  if (!el) return;
+  el.innerHTML = `
+    <div style="font-weight:700;color:var(--navy);margin-bottom:10px">Groepen</div>
+    ${(data || []).map(g => `
+      <div style="padding:12px;border:1.5px solid var(--border);border-radius:12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-weight:700;color:var(--navy)">${g.name}</div>
+          <div style="font-size:11px;color:var(--text)">Code: <b>${g.share_code}</b></div>
+        </div>
+        <button onclick="copyCode('${g.share_code}')" style="background:var(--border);padding:6px 10px;border-radius:8px;font-size:12px;font-weight:700">Kopieer code</button>
+      </div>
+    `).join('')}
+    <button onclick="createGroup('${tripId}')" class="btn btn-primary" style="margin-top:8px">+ Groep aanmaken</button>
+    <button onclick="joinGroupPrompt()" class="btn btn-primary" style="background:var(--border);color:var(--navy);margin-top:8px">Joinen met code</button>
+    <button onclick="showTripSelector()" class="btn btn-primary" style="background:var(--border);color:var(--text);margin-top:8px">← Terug</button>
+  `;
+}
+
+async function createGroup(tripId) {
+  const name = prompt('Naam voor de groep (bijv. "Familie" of "Vrienden"):');
+  if (!name) return;
+  const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+  const { error } = await _sb.from('triply_groups').insert([{
+    trip_id: tripId, name, share_code: code, created_by: currentUser.id
+  }]);
+  if (error) { showMessage(error.message, 'error'); return; }
+  showMessage(`Groep aangemaakt! Code: ${code}`, 'success');
+  loadGroups(tripId);
+}
+
+async function joinGroupPrompt() {
+  const code = prompt('Voer de 6-cijferige groepscode in:');
+  if (!code) return;
+  const { data: group, error } = await _sb.from('triply_groups').select('*').eq('share_code', code.toUpperCase()).maybeSingle();
+  if (error || !group) { showMessage('Code niet gevonden', 'error'); return; }
+  const { error: e2 } = await _sb.from('triply_group_members').insert([{ group_id: group.id, user_id: currentUser.id }]);
+  if (e2 && e2.code !== '23505') { showMessage(e2.message, 'error'); return; }
+  showMessage(`Welkom bij ${group.name}! 🎉`, 'success');
+  selectTrip(group.trip_id);
+}
+
+function copyCode(code) {
+  navigator.clipboard.writeText(code).then(() => showMessage(`Code ${code} gekopieerd!`, 'success'));
 }
 
 function showMessage(msg, type) {
   const el = document.getElementById('auth-message');
-  el.innerHTML = `<div class="${type}" style="text-align:center">${msg}</div>`;
-  setTimeout(() => el.innerHTML = '', 3000);
+  if (el) { el.innerHTML = `<div class="${type}" style="text-align:center">${msg}</div>`; setTimeout(() => el.innerHTML = '', 3000); }
+  else { alert(msg); }
 }
 
-// Init
 initSupabase();
 </script>
 </body>
