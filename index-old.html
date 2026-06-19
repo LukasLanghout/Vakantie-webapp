@@ -1,0 +1,1996 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rhodos Planner 🌊</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Mulish:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+/* ─── Reset & Base ─────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --blue: #2f7fc7; --navy: #11314a; --teal: #57c0d8; --green: #3aa08a;
+  --orange: #ef8f4c; --bg: #fbfafa; --border: #eef3f6; --text: #708496;
+  --dark: #1a2d3d; --white: #fff; --red: #e05c5c;
+  --radius: 20px; --shadow: 0 8px 32px rgba(17,49,74,.13);
+}
+html, body { height: 100%; background: #e8eef3; font-family: 'Mulish', sans-serif; }
+button { font-family: inherit; cursor: pointer; border: none; background: none; }
+input, textarea { font-family: inherit; }
+a { color: inherit; text-decoration: none; }
+
+/* ─── Phone Container ───────────────────────────────────────── */
+.phone-wrap {
+  display: flex; justify-content: center; align-items: center;
+  min-height: 100vh; padding: 20px;
+}
+.phone {
+  width: 393px; height: 852px; background: var(--bg);
+  border-radius: 48px; overflow: hidden; position: relative;
+  box-shadow: 0 30px 80px rgba(0,0,0,.3), inset 0 0 0 1px rgba(255,255,255,.2);
+  display: flex; flex-direction: column;
+}
+@media (max-width: 430px) {
+  .phone-wrap { padding: 0; align-items: flex-start; }
+  .phone { width: 100vw; height: 100dvh; border-radius: 0; }
+}
+
+/* ─── Status Bar ────────────────────────────────────────────── */
+.status-bar {
+  height: 44px; background: var(--navy); display: flex;
+  align-items: center; justify-content: space-between;
+  padding: 0 28px; flex-shrink: 0; position: relative; z-index: 100;
+}
+.status-bar .time { font-size: 15px; font-weight: 700; color: var(--white); }
+.status-icons { display: flex; gap: 6px; align-items: center; }
+.status-icons svg { fill: white; }
+
+/* ─── App Header ────────────────────────────────────────────── */
+.app-header {
+  background: var(--navy); padding: 0 20px 16px; flex-shrink: 0;
+}
+.header-top {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;
+}
+.app-title { font-family: 'Baloo 2', sans-serif; font-size: 22px; font-weight: 800; color: var(--white); }
+.header-sub { font-size: 12px; color: rgba(255,255,255,.6); }
+.header-badges { display: flex; gap: 8px; margin-top: 10px; }
+.badge {
+  padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700;
+  display: flex; align-items: center; gap: 4px;
+}
+.badge-hotel { background: rgba(87,192,216,.2); color: var(--teal); border: 1px solid rgba(87,192,216,.3); }
+.badge-dates { background: rgba(239,143,76,.2); color: #f0a04b; border: 1px solid rgba(239,143,76,.3); }
+.badge-budget { background: rgba(58,160,138,.2); color: var(--green); border: 1px solid rgba(58,160,138,.3); }
+
+/* ─── Tabs ──────────────────────────────────────────────────── */
+.tabs {
+  background: var(--navy); display: flex; border-top: 1px solid rgba(255,255,255,.08);
+  flex-shrink: 0;
+}
+.tab {
+  flex: 1; padding: 10px 4px 8px; display: flex; flex-direction: column;
+  align-items: center; gap: 3px; color: rgba(255,255,255,.4);
+  font-size: 10px; font-weight: 700; letter-spacing: .3px; transition: color .2s;
+  text-transform: uppercase;
+}
+.tab.active { color: var(--teal); }
+.tab svg { width: 20px; height: 20px; }
+
+/* ─── Tab Content ───────────────────────────────────────────── */
+.content { flex: 1; overflow: hidden; position: relative; }
+.tab-panel { position: absolute; inset: 0; overflow-y: auto; display: none; }
+#panel-kaart { overflow: hidden; }
+.tab-panel.active { display: block; }
+.tab-panel::-webkit-scrollbar { width: 3px; }
+.tab-panel::-webkit-scrollbar-track { background: transparent; }
+.tab-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+
+/* ─── Reis Tab ──────────────────────────────────────────────── */
+.section { padding: 16px 16px 4px; }
+.section-title {
+  font-family: 'Baloo 2', sans-serif; font-size: 15px; font-weight: 700;
+  color: var(--navy); margin-bottom: 10px; display: flex;
+  align-items: center; justify-content: space-between;
+}
+.section-count {
+  font-size: 11px; font-weight: 700; background: var(--blue);
+  color: white; padding: 2px 8px; border-radius: 10px;
+}
+
+/* Activity Cards (Reis) */
+.activity-card {
+  background: var(--white); border-radius: 16px; margin-bottom: 10px;
+  overflow: hidden; box-shadow: 0 2px 12px rgba(17,49,74,.07);
+  display: flex; cursor: pointer; transition: transform .15s, box-shadow .15s;
+  border: 1px solid var(--border);
+}
+.activity-card:active { transform: scale(.98); box-shadow: 0 1px 6px rgba(17,49,74,.05); }
+.card-accent { width: 6px; flex-shrink: 0; }
+.card-body { flex: 1; padding: 12px 12px 12px 10px; min-width: 0; }
+.card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.card-name {
+  font-family: 'Baloo 2', sans-serif; font-size: 14px; font-weight: 700;
+  color: var(--navy); line-height: 1.2; flex: 1; min-width: 0;
+}
+.card-price {
+  font-size: 12px; font-weight: 700; color: var(--green); white-space: nowrap;
+  background: rgba(58,160,138,.1); padding: 2px 7px; border-radius: 8px;
+}
+.card-price.free { color: var(--teal); background: rgba(87,192,216,.1); }
+.card-meta {
+  display: flex; gap: 8px; margin-top: 5px; flex-wrap: wrap;
+}
+.card-pill {
+  font-size: 10px; color: var(--text); background: var(--border);
+  padding: 2px 7px; border-radius: 6px; display: flex; align-items: center; gap: 3px;
+}
+.card-day {
+  font-size: 10px; font-weight: 700; padding: 2px 8px;
+  border-radius: 6px; background: rgba(47,127,199,.12); color: var(--blue);
+}
+.card-wishlist {
+  font-size: 10px; font-weight: 700; padding: 2px 8px;
+  border-radius: 6px; background: rgba(239,143,76,.1); color: var(--orange);
+}
+
+/* Empty state */
+.empty-state {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; padding: 40px 20px; gap: 12px; text-align: center;
+}
+.empty-state .empty-icon { font-size: 48px; }
+.empty-state h3 { font-family: 'Baloo 2', sans-serif; font-size: 18px; font-weight: 700; color: var(--navy); }
+.empty-state p { font-size: 13px; color: var(--text); max-width: 240px; line-height: 1.5; }
+
+/* Budget summary */
+.budget-card {
+  background: linear-gradient(135deg, var(--navy) 0%, #1d4a6e 100%);
+  border-radius: 16px; padding: 16px; margin: 0 16px 8px; color: white;
+}
+.budget-title { font-size: 11px; font-weight: 700; opacity: .6; text-transform: uppercase; letter-spacing: .5px; }
+.budget-total { font-family: 'Baloo 2', sans-serif; font-size: 28px; font-weight: 800; margin: 4px 0; }
+.budget-sub { font-size: 11px; opacity: .6; }
+.budget-breakdown {
+  display: flex; gap: 12px; margin-top: 12px; padding-top: 12px;
+  border-top: 1px solid rgba(255,255,255,.1);
+}
+.budget-item { flex: 1; }
+.budget-item-label { font-size: 10px; opacity: .5; }
+.budget-item-val { font-size: 14px; font-weight: 700; }
+
+/* ─── Planning Tab ──────────────────────────────────────────── */
+.day-section { padding: 8px 16px; }
+.day-header {
+  display: flex; align-items: center; gap: 10px; padding: 10px 0 8px;
+  border-bottom: 1px solid var(--border); margin-bottom: 8px;
+}
+.day-num {
+  width: 36px; height: 36px; border-radius: 12px;
+  background: linear-gradient(135deg, var(--blue), var(--teal));
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Baloo 2', sans-serif; font-size: 16px; font-weight: 800; color: white;
+  flex-shrink: 0;
+}
+.day-info { flex: 1; }
+.day-title { font-family: 'Baloo 2', sans-serif; font-size: 14px; font-weight: 700; color: var(--navy); }
+.day-date { font-size: 11px; color: var(--text); }
+.day-total { font-size: 12px; font-weight: 700; color: var(--green); }
+
+.day-card {
+  background: var(--white); border-radius: 12px; padding: 10px 12px;
+  margin-bottom: 6px; display: flex; align-items: center; gap: 10px;
+  cursor: pointer; border: 1px solid var(--border);
+  transition: transform .15s; box-shadow: 0 1px 6px rgba(17,49,74,.04);
+}
+.day-card:active { transform: scale(.98); }
+.day-card-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.day-card-body { flex: 1; min-width: 0; }
+.day-card-name {
+  font-family: 'Baloo 2', sans-serif; font-size: 13px; font-weight: 700;
+  color: var(--navy); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.day-card-sub { font-size: 10px; color: var(--text); margin-top: 1px; }
+.day-card-price { font-size: 12px; font-weight: 700; color: var(--green); flex-shrink: 0; }
+.day-card-time {
+  font-size: 10px; font-weight: 700; color: var(--blue);
+  background: rgba(47,127,199,.1); padding: 2px 6px; border-radius: 6px; flex-shrink: 0;
+}
+.day-empty {
+  font-size: 12px; color: var(--text); text-align: center; padding: 12px;
+  border: 1.5px dashed var(--border); border-radius: 12px; margin-bottom: 6px;
+}
+.wishlist-section { padding: 8px 16px 80px; }
+
+/* ─── Map Tab ───────────────────────────────────────────────── */
+#map-panel { background: #e8eef3; }
+#map { width: 100%; height: 100%; }
+.map-loading {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 10px; z-index: 10;
+  background: rgba(251,250,250,.9); backdrop-filter: blur(4px);
+}
+.map-loading .spinner {
+  width: 36px; height: 36px; border: 3px solid var(--border);
+  border-top-color: var(--blue); border-radius: 50%;
+  animation: spin .8s linear infinite;
+}
+.map-loading p { font-size: 13px; color: var(--text); }
+.map-legend {
+  position: absolute; bottom: 80px; right: 12px; z-index: 400;
+  background: white; border-radius: 12px; padding: 10px 12px;
+  box-shadow: var(--shadow); font-size: 11px; color: var(--navy);
+}
+.legend-item { display: flex; align-items: center; gap: 6px; padding: 2px 0; }
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+/* ─── FAB ───────────────────────────────────────────────────── */
+.fab {
+  position: absolute; bottom: 76px; right: 20px;
+  width: 52px; height: 52px; border-radius: 16px;
+  background: linear-gradient(135deg, var(--blue), var(--teal));
+  box-shadow: 0 4px 20px rgba(47,127,199,.4);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 50; cursor: pointer; transition: transform .2s, box-shadow .2s;
+  border: none;
+}
+.fab:active { transform: scale(.92); box-shadow: 0 2px 10px rgba(47,127,199,.3); }
+.fab svg { width: 24px; height: 24px; fill: white; }
+
+/* ─── Bottom Sheet ──────────────────────────────────────────── */
+.sheet-overlay {
+  position: absolute; inset: 0; background: rgba(17,49,74,.5);
+  z-index: 200; display: none; backdrop-filter: blur(3px);
+}
+.sheet-overlay.open { display: flex; align-items: flex-end; }
+.sheet {
+  background: var(--white); border-radius: 28px 28px 0 0; width: 100%;
+  max-height: 88%; overflow-y: auto; padding-bottom: 24px;
+  animation: slideUp .3s cubic-bezier(.2,.8,.3,1);
+}
+.sheet::-webkit-scrollbar { width: 3px; }
+.sheet::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+@keyframes slideUp {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.sheet-handle {
+  width: 40px; height: 4px; background: #d0d8e0; border-radius: 2px;
+  margin: 12px auto 4px;
+}
+.sheet-header { padding: 8px 20px 16px; display: flex; align-items: center; justify-content: space-between; }
+.sheet-title { font-family: 'Baloo 2', sans-serif; font-size: 18px; font-weight: 800; color: var(--navy); }
+.sheet-close {
+  width: 32px; height: 32px; border-radius: 10px; background: var(--border);
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+}
+.sheet-body { padding: 0 20px; }
+
+/* Add Sheet */
+.url-input-wrap { position: relative; margin-bottom: 12px; }
+.url-input {
+  width: 100%; padding: 14px 48px 14px 16px; border-radius: 14px;
+  border: 2px solid var(--border); font-size: 14px; color: var(--navy);
+  background: #f7f9fb; transition: border-color .2s; outline: none;
+}
+.url-input:focus { border-color: var(--blue); }
+.url-textarea {
+  width: 100%; padding: 12px 16px; border-radius: 14px;
+  border: 2px solid var(--border); font-size: 13px; color: var(--navy);
+  background: #f7f9fb; transition: border-color .2s; outline: none;
+  resize: none; line-height: 1.5; font-family: inherit; min-height: 90px;
+}
+.url-textarea:focus { border-color: var(--blue); }
+.url-paste-btn {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  background: var(--blue); color: white; border-radius: 8px;
+  font-size: 11px; font-weight: 700; padding: 5px 10px; cursor: pointer;
+}
+.url-paste-btn:active { opacity: .8; }
+.analyze-btn {
+  width: 100%; padding: 15px; border-radius: 14px;
+  background: linear-gradient(135deg, var(--blue), var(--teal));
+  color: white; font-size: 15px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  transition: opacity .2s, transform .2s;
+}
+.analyze-btn:active { transform: scale(.98); }
+.analyze-btn:disabled { opacity: .5; }
+.api-key-hint {
+  font-size: 11px; color: var(--text); text-align: center; margin-top: 8px; line-height: 1.5;
+}
+.api-key-hint a { color: var(--blue); font-weight: 700; cursor: pointer; }
+
+/* Parsing state */
+.parsing-state {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 12px; padding: 24px 0;
+}
+.parsing-state .spinner {
+  width: 40px; height: 40px; border: 3px solid var(--border);
+  border-top-color: var(--blue); border-radius: 50%;
+  animation: spin .8s linear infinite;
+}
+.parsing-steps { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+.parsing-step {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 13px; color: var(--text); padding: 8px 12px;
+  border-radius: 10px; background: var(--border);
+}
+.parsing-step.active { background: rgba(47,127,199,.1); color: var(--blue); font-weight: 600; }
+.parsing-step.done { background: rgba(58,160,138,.1); color: var(--green); font-weight: 600; }
+.step-icon { font-size: 16px; width: 20px; text-align: center; }
+
+/* Result card */
+.result-card {
+  background: linear-gradient(135deg, var(--navy), #1d4a6e);
+  border-radius: 16px; padding: 16px; margin-bottom: 16px; color: white;
+}
+.result-cat { font-size: 10px; font-weight: 700; opacity: .6; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+.result-name { font-family: 'Baloo 2', sans-serif; font-size: 20px; font-weight: 800; line-height: 1.2; margin-bottom: 8px; }
+.result-price { display: inline-block; font-size: 13px; font-weight: 700; padding: 3px 10px; border-radius: 10px; background: rgba(58,160,138,.3); }
+.result-blurb { font-size: 12px; opacity: .7; margin-top: 8px; line-height: 1.5; }
+.result-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+.result-info-item {
+  background: var(--border); border-radius: 12px; padding: 10px;
+}
+.result-info-label { font-size: 10px; color: var(--text); font-weight: 700; text-transform: uppercase; letter-spacing: .3px; }
+.result-info-val { font-size: 13px; color: var(--navy); font-weight: 600; margin-top: 2px; }
+
+.day-selector-label { font-size: 12px; font-weight: 700; color: var(--navy); margin-bottom: 8px; }
+.day-selector { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.day-btn {
+  padding: 6px 12px; border-radius: 10px; font-size: 12px; font-weight: 700;
+  background: var(--border); color: var(--text); transition: all .15s;
+  border: 2px solid transparent;
+}
+.day-btn:active { transform: scale(.95); }
+.day-btn.selected { background: rgba(47,127,199,.15); color: var(--blue); border-color: var(--blue); }
+.day-btn.wishlist { background: rgba(239,143,76,.1); color: var(--orange); }
+.day-btn.wishlist.selected { border-color: var(--orange); }
+
+.time-input-row { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+.time-input-label { font-size: 12px; font-weight: 700; color: var(--navy); }
+.time-input {
+  padding: 6px 10px; border-radius: 10px; border: 2px solid var(--border);
+  font-size: 13px; font-weight: 700; color: var(--navy); outline: none;
+  background: var(--border); transition: border-color .2s;
+}
+.time-input:focus { border-color: var(--blue); background: white; }
+
+.save-btn {
+  width: 100%; padding: 15px; border-radius: 14px;
+  background: linear-gradient(135deg, var(--green), #4dc8aa);
+  color: white; font-size: 15px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  transition: transform .2s;
+}
+.save-btn:active { transform: scale(.98); }
+
+/* Error state */
+.error-state {
+  text-align: center; padding: 20px; border-radius: 14px;
+  background: rgba(224,92,92,.08); border: 1px solid rgba(224,92,92,.2);
+  margin-bottom: 16px;
+}
+.error-icon { font-size: 32px; margin-bottom: 8px; }
+.error-title { font-size: 15px; font-weight: 700; color: var(--red); margin-bottom: 4px; }
+.error-msg { font-size: 13px; color: var(--text); }
+
+/* API key modal */
+.api-section { margin-bottom: 16px; }
+.api-label { font-size: 12px; font-weight: 700; color: var(--navy); margin-bottom: 6px; display: block; }
+.api-input {
+  width: 100%; padding: 12px 14px; border-radius: 12px;
+  border: 2px solid var(--border); font-size: 13px; color: var(--navy);
+  background: #f7f9fb; outline: none; transition: border-color .2s;
+  font-family: 'Courier New', monospace;
+}
+.api-input:focus { border-color: var(--blue); }
+.save-key-btn {
+  width: 100%; padding: 13px; border-radius: 12px;
+  background: var(--blue); color: white; font-size: 14px; font-weight: 700;
+}
+.save-key-btn:active { opacity: .85; }
+
+/* Detail Sheet */
+.detail-header {
+  padding: 0 20px 16px; position: relative;
+}
+.detail-gradient {
+  height: 8px; border-radius: 0; margin: 0 -0px 16px;
+}
+.detail-cat-badge {
+  display: inline-block; font-size: 11px; font-weight: 700;
+  padding: 3px 10px; border-radius: 8px; margin-bottom: 8px;
+  text-transform: uppercase; letter-spacing: .3px;
+}
+.detail-name {
+  font-family: 'Baloo 2', sans-serif; font-size: 22px; font-weight: 800;
+  color: var(--navy); line-height: 1.15; margin-bottom: 6px;
+}
+.detail-blurb { font-size: 13px; color: var(--text); line-height: 1.6; }
+.detail-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 16px 20px; }
+.detail-info-card {
+  background: var(--border); border-radius: 14px; padding: 12px;
+}
+.detail-info-icon { font-size: 18px; margin-bottom: 4px; }
+.detail-info-label { font-size: 10px; color: var(--text); font-weight: 700; text-transform: uppercase; letter-spacing: .3px; }
+.detail-info-val { font-size: 13px; color: var(--navy); font-weight: 600; margin-top: 2px; line-height: 1.3; }
+.detail-actions { padding: 0 20px; display: flex; flex-direction: column; gap: 8px; }
+.detail-action-btn {
+  width: 100%; padding: 13px; border-radius: 14px;
+  font-size: 14px; font-weight: 700; display: flex;
+  align-items: center; justify-content: center; gap: 8px;
+  transition: transform .15s, opacity .15s;
+}
+.detail-action-btn:active { transform: scale(.98); opacity: .85; }
+.btn-primary { background: linear-gradient(135deg, var(--blue), var(--teal)); color: white; }
+.btn-outline { background: transparent; border: 2px solid var(--border); color: var(--navy); }
+.btn-danger { background: rgba(224,92,92,.08); border: 2px solid rgba(224,92,92,.15); color: var(--red); }
+.btn-orange { background: linear-gradient(135deg, var(--orange), #f0a04b); color: white; }
+.detail-day-section { padding: 16px 20px; border-top: 1px solid var(--border); }
+.detail-day-label { font-size: 12px; font-weight: 700; color: var(--navy); margin-bottom: 8px; }
+
+/* Toast */
+.toast {
+  position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%) translateY(20px);
+  background: var(--navy); color: white; padding: 10px 20px;
+  border-radius: 20px; font-size: 13px; font-weight: 600;
+  white-space: nowrap; z-index: 300; opacity: 0;
+  transition: opacity .25s, transform .25s; pointer-events: none;
+  box-shadow: 0 4px 20px rgba(17,49,74,.3);
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* Animations */
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Map custom markers */
+.custom-marker {
+  background: var(--navy); color: white; border-radius: 50% 50% 50% 0;
+  width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+  font-size: 14px; border: 2px solid white; box-shadow: 0 2px 8px rgba(0,0,0,.3);
+  transform: rotate(-45deg); cursor: pointer;
+}
+.custom-marker .inner { transform: rotate(45deg); }
+.hotel-marker-icon {
+  background: var(--orange); color: white; border-radius: 50%;
+  width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
+  font-size: 18px; border: 3px solid white; box-shadow: 0 3px 12px rgba(0,0,0,.3);
+}
+.leaflet-popup-content-wrapper {
+  border-radius: 14px !important;
+  box-shadow: 0 4px 20px rgba(17,49,74,.15) !important;
+}
+.map-popup-title {
+  font-family: 'Baloo 2', sans-serif; font-size: 14px; font-weight: 700; color: var(--navy);
+}
+.map-popup-sub { font-size: 11px; color: var(--text); margin-top: 2px; }
+.map-popup-btn {
+  margin-top: 6px; background: var(--blue); color: white; border: none;
+  border-radius: 8px; padding: 4px 10px; font-size: 11px; font-weight: 700;
+  cursor: pointer; font-family: 'Mulish', sans-serif;
+}
+
+/* Scrollbar global */
+.tab-panel { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+
+/* ─── Collection / Batch UI ──────────────────────────────────── */
+.collection-banner {
+  background: linear-gradient(135deg, rgba(87,192,216,.15), rgba(47,127,199,.15));
+  border: 1.5px solid rgba(47,127,199,.25); border-radius: 14px;
+  padding: 12px 14px; margin-bottom: 14px; display: flex; align-items: center; gap: 10px;
+}
+.collection-banner-icon { font-size: 24px; flex-shrink: 0; }
+.collection-banner-text { flex: 1; }
+.collection-banner-title { font-size: 13px; font-weight: 700; color: var(--navy); }
+.collection-banner-sub { font-size: 11px; color: var(--text); margin-top: 1px; }
+
+.batch-progress-wrap { margin-bottom: 14px; }
+.batch-progress-header {
+  display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;
+}
+.batch-progress-label { font-size: 12px; font-weight: 700; color: var(--navy); }
+.batch-progress-count { font-size: 11px; color: var(--text); }
+.batch-progress-bar {
+  height: 6px; background: var(--border); border-radius: 10px; overflow: hidden;
+}
+.batch-progress-fill {
+  height: 100%; border-radius: 10px;
+  background: linear-gradient(90deg, var(--blue), var(--teal));
+  transition: width .4s ease;
+}
+.batch-video-list {
+  display: flex; flex-direction: column; gap: 4px; max-height: 180px; overflow-y: auto;
+  margin-bottom: 14px; padding-right: 2px;
+}
+.batch-video-item {
+  display: flex; align-items: center; gap: 8px; padding: 7px 10px;
+  border-radius: 10px; background: var(--border); font-size: 12px; color: var(--text);
+}
+.batch-video-item.active { background: rgba(47,127,199,.1); color: var(--blue); }
+.batch-video-item.done { background: rgba(58,160,138,.08); color: var(--green); }
+.batch-video-item.skipped { background: rgba(224,92,92,.06); color: #b05050; }
+.batch-video-icon { font-size: 14px; width: 18px; text-align: center; flex-shrink: 0; }
+.batch-video-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.batch-results-header {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;
+}
+.batch-select-all {
+  font-size: 12px; font-weight: 700; color: var(--blue); cursor: pointer;
+  padding: 4px 8px; border-radius: 8px; background: rgba(47,127,199,.1);
+}
+.batch-result-list {
+  display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px;
+  max-height: 300px; overflow-y: auto; padding-right: 2px;
+}
+.batch-result-item {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+  border-radius: 14px; border: 2px solid var(--border); background: var(--white);
+  cursor: pointer; transition: border-color .15s, background .15s;
+}
+.batch-result-item.selected {
+  border-color: var(--blue); background: rgba(47,127,199,.05);
+}
+.batch-result-item.skipped {
+  opacity: .5; cursor: default; border-style: dashed;
+}
+.batch-checkbox {
+  width: 20px; height: 20px; border-radius: 6px; border: 2px solid var(--border);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  transition: background .15s, border-color .15s;
+}
+.batch-result-item.selected .batch-checkbox {
+  background: var(--blue); border-color: var(--blue);
+}
+.batch-result-item.selected .batch-checkbox::after { content: '✓'; color: white; font-size: 12px; font-weight: 700; }
+.batch-result-body { flex: 1; min-width: 0; }
+.batch-result-name { font-size: 13px; font-weight: 700; color: var(--navy); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.batch-result-sub { font-size: 11px; color: var(--text); margin-top: 1px; }
+.batch-result-price { font-size: 12px; font-weight: 700; color: var(--green); white-space: nowrap; }
+.batch-result-cat { width: 24px; height: 24px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
+
+.batch-save-btn {
+  width: 100%; padding: 15px; border-radius: 14px;
+  background: linear-gradient(135deg, var(--green), #4dc8aa);
+  color: white; font-size: 15px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  transition: transform .2s; margin-bottom: 8px;
+}
+.batch-save-btn:active { transform: scale(.98); }
+.batch-save-btn:disabled { opacity: .4; }
+.batch-skipped-note {
+  font-size: 11px; color: var(--text); text-align: center; padding: 6px;
+}
+</style>
+</head>
+<body>
+<div class="phone-wrap">
+<div class="phone">
+
+  <!-- Status Bar -->
+  <div class="status-bar">
+    <span class="time" id="clock">9:41</span>
+    <div class="status-icons">
+      <svg width="16" height="12" viewBox="0 0 16 12"><rect x="0" y="3" width="3" height="9" rx="1" opacity=".4"/><rect x="4" y="2" width="3" height="10" rx="1" opacity=".6"/><rect x="8" y="0" width="3" height="12" rx="1" opacity=".8"/><rect x="12" y="0" width="3" height="12" rx="1"/></svg>
+      <svg width="15" height="12" viewBox="0 0 15 12"><path d="M7.5 2.5c2.8 0 5.3 1.1 7.1 2.9L7.5 12 .4 5.4C2.2 3.6 4.7 2.5 7.5 2.5z" opacity=".4"/><path d="M7.5 5c1.6 0 3.1.7 4.2 1.7L7.5 12l-4.2-5.3C4.4 5.7 5.9 5 7.5 5z" opacity=".7"/><path d="M7.5 7.5c.9 0 1.7.4 2.2 1L7.5 12l-2.2-3.5c.5-.6 1.3-1 2.2-1z"/></svg>
+      <svg width="25" height="12" viewBox="0 0 25 12"><rect x="0" y="1" width="22" height="10" rx="3" stroke="white" stroke-width="1.5" fill="none" opacity=".4"/><rect x="23" y="4" width="2" height="4" rx="1" fill="white" opacity=".4"/><rect x="1.5" y="2.5" width="17" height="7" rx="2" fill="white"/></svg>
+    </div>
+  </div>
+
+  <!-- App Header -->
+  <div class="app-header">
+    <div class="header-top">
+      <div>
+        <div class="app-title">Rhodos Planner ☀️</div>
+        <div class="header-sub">3–9 juli 2026 · Angela Downtown Hotel</div>
+      </div>
+      <button onclick="openSettings()" style="background:rgba(255,255,255,.1);border-radius:10px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;">
+        <svg width="18" height="18" fill="white" viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94s-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.49.49 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87a.49.49 0 00.12.61l2.03 1.58c-.05.3-.07.61-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.57 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+      </button>
+    </div>
+    <div class="header-badges">
+      <span class="badge badge-hotel">🏨 Rhodos-stad</span>
+      <span class="badge badge-dates">📅 7 dagen</span>
+      <span class="badge badge-budget" id="header-budget">💶 €0</span>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('reis')">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+      Reis
+    </button>
+    <button class="tab" onclick="switchTab('planning')">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3h-1V1h-2v2H8V1H6v2H5C3.89 3 3 3.9 3 5v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/></svg>
+      Planning
+    </button>
+    <button class="tab" onclick="switchTab('kaart')">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z"/></svg>
+      Kaart
+    </button>
+  </div>
+
+  <!-- Tab Content -->
+  <div class="content">
+
+    <!-- ═══ REIS TAB ════════════════════════════════════════════ -->
+    <div class="tab-panel active" id="panel-reis">
+      <div style="height:8px"></div>
+
+      <!-- Budget card -->
+      <div class="budget-card" id="budget-card" style="display:none">
+        <div class="budget-title">Totale reiskosten (geschat)</div>
+        <div class="budget-total" id="budget-total">€0</div>
+        <div class="budget-sub" id="budget-sub">per persoon</div>
+        <div class="budget-breakdown">
+          <div class="budget-item">
+            <div class="budget-item-label">Activiteiten</div>
+            <div class="budget-item-val" id="budget-acts">€0</div>
+          </div>
+          <div class="budget-item">
+            <div class="budget-item-label">Gepland</div>
+            <div class="budget-item-val" id="budget-planned">0</div>
+          </div>
+          <div class="budget-item">
+            <div class="budget-item-label">Wishlist</div>
+            <div class="budget-item-val" id="budget-wishlist">0</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Geplande activiteiten -->
+      <div class="section">
+        <div class="section-title">
+          Geplande activiteiten
+          <span class="section-count" id="planned-count">0</span>
+        </div>
+        <div id="planned-list"></div>
+      </div>
+
+      <!-- Wishlist -->
+      <div class="section" style="padding-bottom:80px">
+        <div class="section-title">
+          Wishlist
+          <span class="section-count" id="wishlist-count" style="background:var(--orange)">0</span>
+        </div>
+        <div id="wishlist-list"></div>
+        <div class="empty-state" id="empty-state">
+          <div class="empty-icon">🌊</div>
+          <h3>Nog niets toegevoegd</h3>
+          <p>Plak een TikTok link van een activiteit op Rhodos en de AI voegt hem toe aan je planner.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ PLANNING TAB ═══════════════════════════════════════ -->
+    <div class="tab-panel" id="panel-planning">
+      <div style="height:8px"></div>
+      <div id="planning-days"></div>
+      <div class="wishlist-section">
+        <div class="section-title" style="padding:0 0 8px">
+          Wishlist
+          <span class="section-count" id="plan-wishlist-count" style="background:var(--orange)">0</span>
+        </div>
+        <div id="planning-wishlist"></div>
+      </div>
+    </div>
+
+    <!-- ═══ KAART TAB ══════════════════════════════════════════ -->
+    <div class="tab-panel" id="panel-kaart" style="overflow:hidden">
+      <div id="map" style="position:absolute;inset:0;"></div>
+      <div class="map-loading" id="map-loading">
+        <div class="spinner"></div>
+        <p>Kaart laden...</p>
+      </div>
+      <div class="map-legend" id="map-legend" style="display:none">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--orange)"></div>Hotel</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--blue)"></div>Activiteit</div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+
+  <!-- FAB -->
+  <button class="fab" onclick="openAddSheet()">
+    <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg>
+  </button>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <!-- ═══ ADD SHEET ════════════════════════════════════════════ -->
+  <div class="sheet-overlay" id="add-overlay" onclick="closeAddSheet(event)">
+    <div class="sheet" onclick="event.stopPropagation()">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header">
+        <div class="sheet-title" id="add-sheet-title">Activiteit toevoegen</div>
+        <button class="sheet-close" onclick="closeAddSheet()">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="#708496" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <div class="sheet-body" id="add-sheet-body">
+        <!-- default: input state -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ DETAIL SHEET ═════════════════════════════════════════ -->
+  <div class="sheet-overlay" id="detail-overlay" onclick="closeDetailSheet(event)">
+    <div class="sheet" onclick="event.stopPropagation()">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header">
+        <div class="sheet-title">Details</div>
+        <button class="sheet-close" onclick="closeDetailSheet()">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="#708496" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <div id="detail-sheet-body"></div>
+    </div>
+  </div>
+
+  <!-- ═══ SETTINGS SHEET ═══════════════════════════════════════ -->
+  <div class="sheet-overlay" id="settings-overlay" onclick="closeSettings(event)">
+    <div class="sheet" onclick="event.stopPropagation()">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header">
+        <div class="sheet-title">Instellingen</div>
+        <button class="sheet-close" onclick="closeSettings()">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="#708496" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <div class="sheet-body">
+        <div class="api-section">
+          <label class="api-label">🔑 Groq API Key</label>
+          <p style="font-size:12px;color:var(--text);margin-bottom:8px;line-height:1.5">
+            Haal gratis een API key op via <span style="color:var(--blue);font-weight:700">console.groq.com</span>. Slaat lokaal op in je browser.
+          </p>
+          <input type="password" class="api-input" id="settings-api-key" placeholder="gsk_..." autocomplete="off">
+        </div>
+        <button class="save-key-btn" onclick="saveApiKey()">Opslaan</button>
+        <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
+          <div style="font-size:12px;font-weight:700;color:var(--navy);margin-bottom:8px">Alle data wissen</div>
+          <button onclick="clearAllData()" style="width:100%;padding:12px;border-radius:12px;background:rgba(224,92,92,.08);border:2px solid rgba(224,92,92,.15);color:var(--red);font-size:14px;font-weight:700;">
+            🗑️ Alles verwijderen
+          </button>
+        </div>
+        <div style="height:20px"></div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /phone -->
+</div><!-- /phone-wrap -->
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════
+
+const STORAGE_KEY = 'rhodos_planner_v2';
+const DAYS = [
+  { n: 1, date: '3 jul', label: 'Donderdag 3 juli' },
+  { n: 2, date: '4 jul', label: 'Vrijdag 4 juli' },
+  { n: 3, date: '5 jul', label: 'Zaterdag 5 juli' },
+  { n: 4, date: '6 jul', label: 'Zondag 6 juli' },
+  { n: 5, date: '7 jul', label: 'Maandag 7 juli' },
+  { n: 6, date: '8 jul', label: 'Dinsdag 8 juli' },
+  { n: 7, date: '9 jul', label: 'Woensdag 9 juli' },
+];
+
+const CAT_COLORS = {
+  'Strand':        { a: '#57c0d8', b: '#2f7fc7', emoji: '🏖️' },
+  'Cultuur':       { a: '#8b5cf6', b: '#6d28d9', emoji: '🏛️' },
+  'Natuur':        { a: '#3aa08a', b: '#059669', emoji: '🌿' },
+  'Eten & drinken':{ a: '#ef8f4c', b: '#dc6b19', emoji: '🍽️' },
+  'Avontuur':      { a: '#ef8f4c', b: '#e05c5c', emoji: '⚡' },
+  'Uitzicht':      { a: '#57c0d8', b: '#3aa08a', emoji: '🔭' },
+  'Dagtrip':       { a: '#2f7fc7', b: '#11314a', emoji: '🚗' },
+};
+
+let state = { activities: [] };
+let groqKey = '';
+let currentAddResult = null;
+let currentDetailId = null;
+let map = null;
+let markers = {};
+
+// ═══════════════════════════════════════════════════════════════
+// PERSISTENCE
+// ═══════════════════════════════════════════════════════════════
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) state = JSON.parse(raw);
+  } catch(e) {}
+  try {
+    groqKey = localStorage.getItem('groq_api_key') || '';
+  } catch(e) {}
+}
+
+function saveState() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch(e) {}
+}
+
+// ═══════════════════════════════════════════════════════════════
+// GEOCODING FALLBACK
+// ═══════════════════════════════════════════════════════════════
+
+const GEO_DB = {
+  'anthony quinn bay': { lat: 36.2867, lng: 28.1117 },
+  'anthony quinn': { lat: 36.2867, lng: 28.1117 },
+  'vagies bay': { lat: 36.2867, lng: 28.1117 },
+  'lindos': { lat: 36.0908, lng: 28.0961 },
+  'rhodos-stad': { lat: 36.4412, lng: 28.2247 },
+  'rhodos stad': { lat: 36.4412, lng: 28.2247 },
+  'rodos stad': { lat: 36.4412, lng: 28.2247 },
+  'rhodes town': { lat: 36.4412, lng: 28.2247 },
+  'old town': { lat: 36.4449, lng: 28.2275 },
+  'oude stad': { lat: 36.4449, lng: 28.2275 },
+  'faliraki': { lat: 36.3333, lng: 28.2167 },
+  'ixia': { lat: 36.3917, lng: 28.2083 },
+  'ixia beach': { lat: 36.3917, lng: 28.2083 },
+  'pefkos': { lat: 36.1594, lng: 28.1239 },
+  'pefki': { lat: 36.1594, lng: 28.1239 },
+  'kiotari': { lat: 36.1706, lng: 28.0814 },
+  'kolymbia': { lat: 36.2333, lng: 28.1833 },
+  'tsambika': { lat: 36.2389, lng: 28.1797 },
+  'tsambika beach': { lat: 36.2389, lng: 28.1797 },
+  'afantou': { lat: 36.2256, lng: 28.1672 },
+  'kalithea': { lat: 36.3583, lng: 28.2333 },
+  'kalithea springs': { lat: 36.3583, lng: 28.2333 },
+  'monte smith': { lat: 36.4279, lng: 28.2079 },
+  'filerimos': { lat: 36.3917, lng: 28.1542 },
+  'archangelos': { lat: 36.2167, lng: 28.1333 },
+  'embonas': { lat: 36.2333, lng: 27.9167 },
+  'prasonisi': { lat: 35.8883, lng: 27.7794 },
+  'stegna beach': { lat: 36.2053, lng: 28.1569 },
+  'haraki': { lat: 36.1706, lng: 28.0814 },
+  'vlicha bay': { lat: 36.0850, lng: 28.1050 },
+  'lindos beach': { lat: 36.0886, lng: 28.0944 },
+  'petaloudes': { lat: 36.3583, lng: 28.0500 },
+  'butterfly valley': { lat: 36.3583, lng: 28.0500 },
+  'mandraki': { lat: 36.4486, lng: 28.2280 },
+  'rhodos': { lat: 36.28, lng: 28.15 },
+  'rodos': { lat: 36.28, lng: 28.15 },
+  'rhodes': { lat: 36.28, lng: 28.15 },
+};
+
+function geocodeFallback(area) {
+  const key = (area || '').toLowerCase().trim();
+  for (const [k, v] of Object.entries(GEO_DB)) {
+    if (key.includes(k) || k.includes(key)) return v;
+  }
+  return null;
+}
+
+async function geocodeNominatim(area) {
+  try {
+    const q = encodeURIComponent(area + ', Rhodes, Greece');
+    const r = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&q=${q}&limit=1`,
+      { headers: { 'Accept-Language': 'nl', 'User-Agent': 'RhodosPlannerApp/1.0' } }
+    );
+    const data = await r.json();
+    if (data && data[0]) return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+  } catch(e) {}
+  return null;
+}
+
+async function geocode(area) {
+  const fb = geocodeFallback(area);
+  if (fb) return fb;
+  const nom = await geocodeNominatim(area);
+  if (nom) return nom;
+  // Center of Rhodes with small random offset
+  return { lat: 36.28 + (Math.random()-.5)*.1, lng: 28.15 + (Math.random()-.5)*.1 };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// GROQ AI
+// ═══════════════════════════════════════════════════════════════
+
+async function callGroq(prompt) {
+  const key = groqKey || localStorage.getItem('groq_api_key') || '';
+  if (!key) throw new Error('NO_KEY');
+  const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'llama-3.1-8b-instant',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.2, max_tokens: 600,
+    })
+  });
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({}));
+    throw new Error(err.error?.message || `HTTP ${r.status}`);
+  }
+  const data = await r.json();
+  return data.choices[0].message.content;
+}
+
+function buildPrompt(url, title, desc, author) {
+  return `TAAK: Analyseer een TikTok over Rhodos (Griekenland) en extract activiteit info.
+
+TikTok URL: ${url}
+Titel: "${title || ''}"
+Beschrijving: "${(desc || '').slice(0, 300)}"
+Creator: "${author || ''}"
+
+STAP 1 - VALIDATIE:
+Gaat dit over Rhodos (Griekenland)? Of over een ander eiland (Zakynthos, Mykonos, Kreta, Santorini, Corfu)?
+- ALS ander eiland of niet over een Grieks eiland → return {"error": true, "message": "Dit gaat over [eiland], niet Rhodos"}
+- ALS Rhodos of onduidelijk maar waarschijnlijk Rhodos → ga naar STAP 2
+
+STAP 2 - EXTRACTION:
+Wat is de activiteit? Waar op Rhodos? Prijs? Reservering nodig?
+Gok gerust op basis van bekende Rhodos attracties als metadata leeg is.
+Vertaal naar het Nederlands.
+
+OUTPUT - ALLEEN GELDIG JSON, NIETS ANDERS, GEEN MARKDOWN:
+{"error":false,"name":"activiteitsnaam Nederlands max 35 chars","cat":"Strand","area":"Lindos","priceLabel":"Gratis","priceVal":0,"free":true,"reserve":false,"hours":"09:00-20:00","dur":"2 uur","travel":"30 min","blurb":"Korte 2-zins beschrijving in het Nederlands.","lat":36.0908,"lng":28.0961}
+
+Kies cat uit: Strand, Cultuur, Natuur, Eten & drinken, Avontuur, Uitzicht, Dagtrip`;
+}
+
+function parseGroqJson(text) {
+  const clean = text.replace(/```json|```/g, '').trim();
+  const match = clean.match(/\{[\s\S]*\}/);
+  if (match) return JSON.parse(match[0]);
+  throw new Error('Geen JSON gevonden in AI response');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TIKTOK FETCHER
+// ═══════════════════════════════════════════════════════════════
+
+async function fetchTikTokMeta(url) {
+  // Use our serverless proxy to avoid CORS
+  try {
+    const r = await fetch(`/api/tiktok?type=video&url=${encodeURIComponent(url)}`);
+    const json = await r.json();
+    const v = json?.data?.data || json?.data;
+    if (v && (v.title || v.desc)) {
+      return { title: v.title || '', desc: v.desc || v.title || '', author: v.author?.unique_id || '' };
+    }
+  } catch(e) {}
+  // Fallback: TikTok oembed (no CORS issues)
+  try {
+    const oembed = `https://www.tiktok.com/oembed?url=${encodeURIComponent(url)}`;
+    const r = await fetch(oembed);
+    const data = await r.json();
+    if (data && data.title) {
+      return { title: data.title, desc: data.title, author: data.author_name || '' };
+    }
+  } catch(e) {}
+  // URL parsing fallback
+  const parts = url.split('/');
+  const author = parts.find(p => p.startsWith('@')) || '';
+  return { title: '', desc: '', author };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ADD ACTIVITY FLOW
+// ═══════════════════════════════════════════════════════════════
+
+function renderAddInput(prefill = '') {
+  const hasKey = !!(groqKey || localStorage.getItem('groq_api_key'));
+  document.getElementById('add-sheet-body').innerHTML = `
+    <div style="position:relative;margin-bottom:10px">
+      <textarea class="url-textarea" id="tiktok-url"
+        placeholder="Plak één of meerdere TikTok-links&#10;(één per regel, of een collectie-URL)"
+        autocomplete="off" spellcheck="false">${esc(prefill)}</textarea>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <button class="url-paste-btn" style="position:static;transform:none;flex:1;padding:9px;border-radius:10px;font-size:12px" onclick="pasteUrl()">📋 Plakken</button>
+      <button style="flex:1;padding:9px;border-radius:10px;background:var(--border);color:var(--text);font-size:12px;font-weight:700" onclick="document.getElementById('tiktok-url').value=''">✕ Wissen</button>
+    </div>
+    <div class="collection-banner">
+      <div class="collection-banner-icon">💡</div>
+      <div class="collection-banner-text">
+        <div class="collection-banner-title">Tip: meerdere links</div>
+        <div class="collection-banner-sub">Open je collectie op TikTok → kopieer links → plak ze hier (één per regel)</div>
+      </div>
+    </div>
+    <button class="analyze-btn" onclick="startAnalyze()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7z"/></svg>
+      AI analyseren
+    </button>
+    ${!hasKey ? `<div class="api-key-hint">⚙️ Nog geen API key? <a onclick="openSettings()">Voeg Groq key toe</a></div>` : ''}
+  `;
+  setTimeout(() => document.getElementById('tiktok-url')?.focus(), 300);
+}
+
+async function pasteUrl() {
+  try {
+    const text = await navigator.clipboard.readText();
+    const el = document.getElementById('tiktok-url');
+    if (el) el.value = (el.value ? el.value.trim() + '\n' : '') + text.trim();
+  } catch(e) {
+    showToast('Plak handmatig (Ctrl+V)');
+  }
+}
+
+function extractTikTokUrls(text) {
+  const urlRegex = /https?:\/\/(?:www\.|vm\.|vt\.)?tiktok\.com\/[^\s"'<>]+/gi;
+  const matches = text.match(urlRegex) || [];
+  // Deduplicate
+  return [...new Set(matches.map(u => u.replace(/[,;)]+$/, '')))];
+}
+
+function renderParsingState(steps) {
+  document.getElementById('add-sheet-body').innerHTML = `
+    <div class="parsing-state">
+      <div class="spinner"></div>
+      <div class="parsing-steps">
+        ${steps.map(s => `
+          <div class="parsing-step ${s.status}" id="step-${s.id}">
+            <span class="step-icon">${s.status === 'done' ? '✅' : s.status === 'active' ? '⏳' : '○'}</span>
+            ${s.label}
+          </div>`).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function updateStep(id, status) {
+  const el = document.getElementById(`step-${id}`);
+  if (!el) return;
+  el.className = `parsing-step ${status}`;
+  el.querySelector('.step-icon').textContent = status === 'done' ? '✅' : status === 'active' ? '⏳' : '○';
+}
+
+function isCollectionUrl(url) {
+  return url.includes('/collection/');
+}
+
+async function startAnalyze() {
+  const raw = (document.getElementById('tiktok-url')?.value || '').trim();
+  if (!raw) { showToast('Voeg eerst een TikTok URL in'); return; }
+
+  const key = groqKey || localStorage.getItem('groq_api_key') || '';
+  if (!key) {
+    showToast('Stel eerst je Groq API key in ⚙️');
+    openSettings(); return;
+  }
+
+  const urls = extractTikTokUrls(raw);
+  if (urls.length === 0) { showToast('Geen geldige TikTok-links gevonden'); return; }
+
+  // Multiple URLs → batch flow directly
+  if (urls.length > 1) {
+    startMultiUrlAnalyze(urls);
+    return;
+  }
+
+  const url = urls[0];
+
+  // Single collection URL → try API
+  if (isCollectionUrl(url)) {
+    startCollectionAnalyze(url);
+    return;
+  }
+
+  document.getElementById('add-sheet-title').textContent = 'Analyseren...';
+
+  const steps = [
+    { id: 'fetch', label: 'TikTok info ophalen', status: 'active' },
+    { id: 'ai', label: 'AI analyseert activiteit', status: '' },
+    { id: 'geo', label: 'Locatie op kaart zetten', status: '' },
+  ];
+  renderParsingState(steps);
+
+  let meta = {};
+  try {
+    meta = await fetchTikTokMeta(url);
+    updateStep('fetch', 'done');
+  } catch(e) {
+    updateStep('fetch', 'done');
+  }
+
+  updateStep('ai', 'active');
+  const prompt = buildPrompt(url, meta.title, meta.desc, meta.author);
+
+  let parsed;
+  try {
+    const response = await callGroq(prompt);
+    parsed = parseGroqJson(response);
+  } catch(e) {
+    if (e.message === 'NO_KEY') {
+      renderError('Groq API key ontbreekt', 'Ga naar instellingen om je API key in te voeren.');
+      return;
+    }
+    renderError('AI analyse mislukt', e.message);
+    return;
+  }
+
+  if (parsed.error) {
+    renderError('Geen Rhodos activiteit', parsed.message || 'Dit lijkt geen video over Rhodos te zijn.');
+    return;
+  }
+
+  updateStep('ai', 'done');
+  updateStep('geo', 'active');
+
+  if (!parsed.lat || !parsed.lng || (parsed.lat === 36.28 && parsed.lng === 28.15)) {
+    const geo = await geocode(parsed.area);
+    parsed.lat = geo.lat;
+    parsed.lng = geo.lng;
+  }
+  updateStep('geo', 'done');
+
+  const cat = CAT_COLORS[parsed.cat] || CAT_COLORS['Strand'];
+  currentAddResult = {
+    id: Date.now().toString(),
+    url,
+    tk: meta.author,
+    name: parsed.name,
+    cat: parsed.cat,
+    catA: cat.a, catB: cat.b,
+    area: parsed.area,
+    priceLabel: parsed.priceLabel,
+    priceVal: parsed.priceVal || 0,
+    free: parsed.free,
+    reserve: parsed.reserve,
+    hours: parsed.hours,
+    dur: parsed.dur,
+    travel: parsed.travel,
+    blurb: parsed.blurb,
+    lat: parsed.lat, lng: parsed.lng,
+    day: null, time: '10:00',
+    addedAt: Date.now(),
+  };
+
+  renderResultCard(currentAddResult);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// COLLECTION FLOW
+// ═══════════════════════════════════════════════════════════════
+
+function extractCollectionId(url) {
+  // https://www.tiktok.com/@user/collection/Name-7234567890123456789
+  const m = url.match(/\/collection\/[^/?#]*?(\d{10,})/);
+  if (m) return m[1];
+  // fallback: last path segment
+  const seg = url.split('/').filter(Boolean).pop()?.split('?')[0] || '';
+  const dm = seg.match(/(\d{10,})/);
+  return dm ? dm[1] : null;
+}
+
+async function fetchCollectionVideos(url) {
+  const collectionId = extractCollectionId(url);
+  if (!collectionId) return null;
+
+  // Use our serverless proxy — avoids CORS and DNS issues
+  try {
+    const r = await fetch(`/api/tiktok?type=collection&mix_id=${collectionId}`);
+    const json = await r.json();
+    if (json?.ok && json?.items?.length > 0) {
+      return json.items.map(v => ({
+        videoUrl: `https://www.tiktok.com/@${v.author?.unique_id || 'user'}/video/${v.aweme_id || v.id || ''}`,
+        title: v.title || v.desc || '',
+        desc: v.desc || v.title || '',
+        author: v.author?.unique_id || v.author?.nickname || '',
+        id: String(v.aweme_id || v.id || Math.random()),
+      }));
+    }
+    if (json?.error) throw new Error(json.error);
+  } catch(e) {
+    console.warn('Collection fetch failed:', e.message);
+  }
+  return null;
+}
+
+let batchResults = [];
+let batchSelected = new Set();
+
+async function startMultiUrlAnalyze(urls) {
+  const videos = urls.map((u, i) => ({
+    videoUrl: u, title: '', desc: '', author: '', id: String(i),
+  }));
+  document.getElementById('add-sheet-title').textContent = `${urls.length} video's analyseren`;
+  batchResults = [];
+  batchSelected = new Set();
+  await runBatchAnalyze(null, videos);
+}
+
+async function startCollectionAnalyze(collectionUrl) {
+  document.getElementById('add-sheet-title').textContent = 'Collectie laden...';
+  document.getElementById('add-sheet-body').innerHTML = `
+    <div class="parsing-state">
+      <div class="spinner"></div>
+      <div class="parsing-steps">
+        <div class="parsing-step active" id="step-col-fetch">
+          <span class="step-icon">⏳</span> TikTok collectie ophalen
+        </div>
+      </div>
+    </div>
+  `;
+
+  const videos = await fetchCollectionVideos(collectionUrl);
+
+  if (!videos || videos.length === 0) {
+    // Collection API failed → guide user to paste individual links
+    document.getElementById('add-sheet-title').textContent = 'Collectie niet geladen';
+    document.getElementById('add-sheet-body').innerHTML = `
+      <div class="error-state" style="margin-bottom:14px">
+        <div class="error-icon">📋</div>
+        <div class="error-title">Collectie-API werkt niet</div>
+        <div class="error-msg">TikTok collecties zijn moeilijk automatisch op te halen. Kopieer de losse video-links uit je collectie en plak ze hieronder.</div>
+      </div>
+      <div style="font-size:12px;color:var(--navy);font-weight:700;margin-bottom:6px">Hoe kopieer je de links?</div>
+      <div style="font-size:12px;color:var(--text);line-height:1.6;margin-bottom:12px">
+        1. Open je collectie op TikTok (telefoon of web)<br>
+        2. Tik op een video → Delen → Link kopiëren<br>
+        3. Herhaal voor elke video, plak alles hieronder
+      </div>
+      <div style="position:relative;margin-bottom:10px">
+        <textarea class="url-textarea" id="tiktok-url" style="min-height:110px"
+          placeholder="https://www.tiktok.com/@user/video/123&#10;https://www.tiktok.com/@user/video/456&#10;..."
+          autocomplete="off" spellcheck="false"></textarea>
+      </div>
+      <button class="analyze-btn" onclick="startAnalyze()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7z"/></svg>
+        Analyseer gekopieerde links
+      </button>
+      <div style="height:8px"></div>
+    `;
+    return;
+  }
+
+  document.getElementById('add-sheet-title').textContent = `${videos.length} video's analyseren`;
+  batchResults = [];
+  batchSelected = new Set();
+  await runBatchAnalyze(collectionUrl, videos);
+}
+
+async function runBatchAnalyze(sourceUrl, videos) {
+  renderBatchProgress(videos, 0);
+
+  for (let i = 0; i < videos.length; i++) {
+    const v = videos[i];
+    updateBatchProgress(i, videos.length, v.title || `Video ${i + 1}`);
+
+    try {
+      const prompt = buildPrompt(v.videoUrl || sourceUrl || '', v.title, v.desc, v.author);
+      const response = await callGroq(prompt);
+      const parsed = parseGroqJson(response);
+
+      if (parsed.error) {
+        batchResults.push({ status: 'skipped', reason: parsed.message || 'Niet Rhodos', video: v });
+        markBatchItem(i, 'skipped', v.title || `Video ${i + 1}`);
+        continue;
+      }
+
+      if (!parsed.lat || !parsed.lng || (parsed.lat === 36.28 && parsed.lng === 28.15)) {
+        const geo = await geocode(parsed.area);
+        parsed.lat = geo.lat;
+        parsed.lng = geo.lng;
+      }
+
+      const cat = CAT_COLORS[parsed.cat] || CAT_COLORS['Strand'];
+      const act = {
+        id: `batch_${Date.now()}_${i}`,
+        url: v.videoUrl || sourceUrl || '',
+        tk: v.author,
+        name: parsed.name,
+        cat: parsed.cat, catA: cat.a, catB: cat.b,
+        area: parsed.area,
+        priceLabel: parsed.priceLabel, priceVal: parsed.priceVal || 0,
+        free: parsed.free, reserve: parsed.reserve,
+        hours: parsed.hours, dur: parsed.dur, travel: parsed.travel,
+        blurb: parsed.blurb, lat: parsed.lat, lng: parsed.lng,
+        day: null, time: '10:00', addedAt: Date.now() + i,
+      };
+      batchResults.push({ status: 'found', act });
+      batchSelected.add(act.id);
+      markBatchItem(i, 'done', parsed.name);
+    } catch(e) {
+      batchResults.push({ status: 'skipped', reason: e.message, video: v });
+      markBatchItem(i, 'skipped', v.title || `Video ${i + 1}`);
+    }
+
+    // Small delay to respect Groq rate limits
+    if (i < videos.length - 1) await new Promise(r => setTimeout(r, 400));
+  }
+
+  renderBatchFinalResults(videos.length);
+}
+
+function renderBatchProgress(videos, current) {
+  document.getElementById('add-sheet-body').innerHTML = `
+    <div class="batch-progress-wrap">
+      <div class="batch-progress-header">
+        <span class="batch-progress-label">Analyseren...</span>
+        <span class="batch-progress-count" id="batch-count">0 / ${videos.length}</span>
+      </div>
+      <div class="batch-progress-bar">
+        <div class="batch-progress-fill" id="batch-fill" style="width:0%"></div>
+      </div>
+    </div>
+    <div class="batch-video-list" id="batch-video-list">
+      ${videos.map((v, i) => `
+        <div class="batch-video-item" id="bvi-${i}">
+          <span class="batch-video-icon">○</span>
+          <span class="batch-video-name">${esc(v.title || `Video ${i + 1}`)}</span>
+        </div>`).join('')}
+    </div>
+  `;
+}
+
+function updateBatchProgress(index, total, label) {
+  const pct = Math.round((index / total) * 100);
+  const fillEl = document.getElementById('batch-fill');
+  const countEl = document.getElementById('batch-count');
+  if (fillEl) fillEl.style.width = pct + '%';
+  if (countEl) countEl.textContent = `${index} / ${total}`;
+
+  const item = document.getElementById(`bvi-${index}`);
+  if (item) {
+    item.className = 'batch-video-item active';
+    item.querySelector('.batch-video-icon').textContent = '⏳';
+    item.querySelector('.batch-video-name').textContent = label;
+    item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+}
+
+function markBatchItem(index, status, label) {
+  const item = document.getElementById(`bvi-${index}`);
+  if (!item) return;
+  item.className = `batch-video-item ${status}`;
+  item.querySelector('.batch-video-icon').textContent = status === 'done' ? '✅' : '⛔';
+  item.querySelector('.batch-video-name').textContent = label;
+
+  const total = batchResults.length;
+  const pct = Math.round(((index + 1) / (document.getElementById('batch-count')?.textContent?.split('/')[1]?.trim() || total)) * 100);
+  const fillEl = document.getElementById('batch-fill');
+  const countEl = document.getElementById('batch-count');
+  if (fillEl) fillEl.style.width = Math.min(pct, 99) + '%';
+  if (countEl) {
+    const parts = countEl.textContent.split('/');
+    countEl.textContent = `${index + 1} / ${parts[1]?.trim() || total}`;
+  }
+}
+
+function renderBatchFinalResults(totalFetched) {
+  const found = batchResults.filter(r => r.status === 'found');
+  const skipped = batchResults.filter(r => r.status === 'skipped');
+
+  document.getElementById('add-sheet-title').textContent =
+    `${found.length} activiteit${found.length !== 1 ? 'en' : ''} gevonden`;
+
+  if (found.length === 0) {
+    document.getElementById('add-sheet-body').innerHTML = `
+      <div class="error-state">
+        <div class="error-icon">🤔</div>
+        <div class="error-title">Geen Rhodos activiteiten</div>
+        <div class="error-msg">Geen van de ${totalFetched} video's bleek over Rhodos te gaan.</div>
+      </div>
+      <button class="analyze-btn" onclick="renderAddInput();document.getElementById('add-sheet-title').textContent='Activiteit toevoegen'">
+        ← Opnieuw proberen
+      </button>
+    `;
+    return;
+  }
+
+  document.getElementById('add-sheet-body').innerHTML = `
+    <div class="batch-results-header">
+      <span style="font-size:12px;font-weight:700;color:var(--navy)">${found.length} gevonden${skipped.length ? `, ${skipped.length} overgeslagen` : ''}</span>
+      <span class="batch-select-all" onclick="toggleSelectAll()">Alles selecteren</span>
+    </div>
+    <div class="batch-result-list" id="batch-result-list">
+      ${found.map(r => batchResultItemHTML(r.act)).join('')}
+      ${skipped.map(r => `
+        <div class="batch-result-item skipped">
+          <div class="batch-checkbox"></div>
+          <div class="batch-result-body">
+            <div class="batch-result-name">⛔ ${esc(r.video?.title || 'Video')}</div>
+            <div class="batch-result-sub">${esc(r.reason || 'Niet Rhodos')}</div>
+          </div>
+        </div>`).join('')}
+    </div>
+    <button class="batch-save-btn" id="batch-save-btn" onclick="saveBatchActivities()">
+      ✅ Sla <span id="batch-save-count">${found.length}</span> activiteit${found.length !== 1 ? 'en' : ''} op
+    </button>
+    ${skipped.length ? `<div class="batch-skipped-note">⛔ ${skipped.length} video${skipped.length !== 1 ? "'s" : ''} overgeslagen (niet over Rhodos)</div>` : ''}
+    <div style="height:8px"></div>
+  `;
+}
+
+function batchResultItemHTML(act) {
+  const cat = CAT_COLORS[act.cat] || CAT_COLORS['Strand'];
+  const sel = batchSelected.has(act.id);
+  return `
+    <div class="batch-result-item ${sel ? 'selected' : ''}" id="bri-${act.id}" onclick="toggleBatchItem('${act.id}')">
+      <div class="batch-checkbox"></div>
+      <div class="batch-result-cat" style="background:${cat.a}20">${cat.emoji}</div>
+      <div class="batch-result-body">
+        <div class="batch-result-name">${esc(act.name)}</div>
+        <div class="batch-result-sub">📍 ${esc(act.area)} · ${esc(act.cat)}</div>
+      </div>
+      <div class="batch-result-price">${esc(act.priceLabel)}</div>
+    </div>`;
+}
+
+function toggleBatchItem(id) {
+  if (batchSelected.has(id)) {
+    batchSelected.delete(id);
+    document.getElementById(`bri-${id}`)?.classList.remove('selected');
+  } else {
+    batchSelected.add(id);
+    document.getElementById(`bri-${id}`)?.classList.add('selected');
+  }
+  updateBatchSaveBtn();
+}
+
+function toggleSelectAll() {
+  const found = batchResults.filter(r => r.status === 'found');
+  const allSelected = found.every(r => batchSelected.has(r.act.id));
+  if (allSelected) {
+    found.forEach(r => { batchSelected.delete(r.act.id); document.getElementById(`bri-${r.act.id}`)?.classList.remove('selected'); });
+  } else {
+    found.forEach(r => { batchSelected.add(r.act.id); document.getElementById(`bri-${r.act.id}`)?.classList.add('selected'); });
+  }
+  updateBatchSaveBtn();
+}
+
+function updateBatchSaveBtn() {
+  const n = batchSelected.size;
+  const btn = document.getElementById('batch-save-btn');
+  const countEl = document.getElementById('batch-save-count');
+  if (btn) btn.disabled = n === 0;
+  if (countEl) countEl.textContent = n;
+}
+
+function saveBatchActivities() {
+  const toSave = batchResults
+    .filter(r => r.status === 'found' && batchSelected.has(r.act.id))
+    .map(r => r.act);
+  if (toSave.length === 0) return;
+  state.activities.unshift(...toSave);
+  saveState();
+  batchResults = [];
+  batchSelected = new Set();
+  closeAddSheet();
+  renderAll();
+  if (map) refreshMapMarkers();
+  showToast(`✅ ${toSave.length} activiteit${toSave.length !== 1 ? 'en' : ''} opgeslagen!`);
+}
+
+function renderResultCard(act) {
+  document.getElementById('add-sheet-title').textContent = 'Gevonden!';
+  const cat = CAT_COLORS[act.cat] || CAT_COLORS['Strand'];
+
+  document.getElementById('add-sheet-body').innerHTML = `
+    <div class="result-card" style="background:linear-gradient(135deg,${cat.a},${cat.b})">
+      <div class="result-cat">${cat.emoji} ${act.cat}</div>
+      <div class="result-name">${esc(act.name)}</div>
+      <span class="result-price">${esc(act.priceLabel)}</span>
+      ${act.blurb ? `<div class="result-blurb">${esc(act.blurb)}</div>` : ''}
+    </div>
+    <div class="result-info-grid">
+      <div class="result-info-item">
+        <div class="result-info-label">📍 Locatie</div>
+        <div class="result-info-val">${esc(act.area)}</div>
+      </div>
+      <div class="result-info-item">
+        <div class="result-info-label">🕐 Openingstijden</div>
+        <div class="result-info-val">${esc(act.hours || '–')}</div>
+      </div>
+      <div class="result-info-item">
+        <div class="result-info-label">⏱ Duur</div>
+        <div class="result-info-val">${esc(act.dur || '–')}</div>
+      </div>
+      <div class="result-info-item">
+        <div class="result-info-label">🚗 Reistijd</div>
+        <div class="result-info-val">${esc(act.travel || '–')}</div>
+      </div>
+    </div>
+
+    <div class="day-selector-label">Inplannen op dag:</div>
+    <div class="day-selector" id="result-day-selector">
+      ${DAYS.map(d => `
+        <button class="day-btn" data-day="${d.n}" onclick="selectDay(${d.n})">Dag ${d.n}<br><span style="font-size:10px;opacity:.7">${d.date}</span></button>
+      `).join('')}
+      <button class="day-btn wishlist selected" data-day="wishlist" onclick="selectDay(null)">⭐ Wishlist</button>
+    </div>
+
+    <div class="time-input-row" id="time-row" style="display:none">
+      <span class="time-input-label">⏰ Tijdstip:</span>
+      <input type="time" class="time-input" id="result-time" value="10:00">
+    </div>
+
+    <button class="save-btn" onclick="saveActivity()">
+      ✅ Opslaan in planner
+    </button>
+    <div style="height:8px"></div>
+  `;
+}
+
+function selectDay(day) {
+  currentAddResult.day = day;
+  document.querySelectorAll('#result-day-selector .day-btn').forEach(btn => {
+    const d = btn.dataset.day;
+    const active = (day === null && d === 'wishlist') || (day !== null && parseInt(d) === day);
+    btn.classList.toggle('selected', active);
+  });
+  document.getElementById('time-row').style.display = day !== null ? 'flex' : 'none';
+}
+
+function saveActivity() {
+  if (!currentAddResult) return;
+  const timeEl = document.getElementById('result-time');
+  if (timeEl) currentAddResult.time = timeEl.value;
+  state.activities.unshift(currentAddResult);
+  saveState();
+  currentAddResult = null;
+  closeAddSheet();
+  renderAll();
+  showToast('✅ Activiteit opgeslagen!');
+  if (map) refreshMapMarkers();
+}
+
+function renderError(title, msg) {
+  document.getElementById('add-sheet-title').textContent = 'Niet gelukt';
+  document.getElementById('add-sheet-body').innerHTML = `
+    <div class="error-state">
+      <div class="error-icon">⚠️</div>
+      <div class="error-title">${esc(title)}</div>
+      <div class="error-msg">${esc(msg)}</div>
+    </div>
+    <button class="analyze-btn" onclick="renderAddInput();document.getElementById('add-sheet-title').textContent='Activiteit toevoegen'">
+      ← Opnieuw proberen
+    </button>
+    <div style="height:8px"></div>
+  `;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════════════════════
+
+function renderAll() {
+  renderReis();
+  renderPlanning();
+  updateBudget();
+}
+
+function renderReis() {
+  const planned = state.activities.filter(a => a.day !== null);
+  const wishlist = state.activities.filter(a => a.day === null);
+
+  document.getElementById('planned-count').textContent = planned.length;
+  document.getElementById('wishlist-count').textContent = wishlist.length;
+
+  const planEl = document.getElementById('planned-list');
+  planEl.innerHTML = planned.length
+    ? planned.sort((a,b) => a.day - b.day || a.time?.localeCompare(b.time)).map(a => activityCardHTML(a)).join('')
+    : `<p style="font-size:13px;color:var(--text);text-align:center;padding:12px">Nog niets gepland</p>`;
+
+  const wlEl = document.getElementById('wishlist-list');
+  wlEl.innerHTML = wishlist.map(a => activityCardHTML(a)).join('');
+
+  document.getElementById('empty-state').style.display = state.activities.length ? 'none' : '';
+  document.getElementById('budget-card').style.display = state.activities.length ? '' : 'none';
+}
+
+function activityCardHTML(a) {
+  const cat = CAT_COLORS[a.cat] || CAT_COLORS['Strand'];
+  return `
+    <div class="activity-card" onclick="openDetail('${a.id}')">
+      <div class="card-accent" style="background:linear-gradient(to bottom,${cat.a},${cat.b})"></div>
+      <div class="card-body">
+        <div class="card-top">
+          <div class="card-name">${esc(a.name)}</div>
+          <div class="card-price ${a.free ? 'free' : ''}">${esc(a.priceLabel)}</div>
+        </div>
+        <div class="card-meta">
+          <span class="card-pill">📍 ${esc(a.area)}</span>
+          <span class="card-pill">${cat.emoji} ${esc(a.cat)}</span>
+          ${a.dur ? `<span class="card-pill">⏱ ${esc(a.dur)}</span>` : ''}
+          ${a.day !== null
+            ? `<span class="card-day">Dag ${a.day} · ${a.time || ''}</span>`
+            : `<span class="card-wishlist">⭐ Wishlist</span>`}
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderPlanning() {
+  const daysEl = document.getElementById('planning-days');
+  daysEl.innerHTML = DAYS.map(d => {
+    const acts = state.activities.filter(a => a.day === d.n)
+      .sort((a,b) => (a.time||'').localeCompare(b.time||''));
+    const dayTotal = acts.reduce((s,a) => s + (a.priceVal || 0), 0);
+    return `
+      <div class="day-section">
+        <div class="day-header">
+          <div class="day-num">${d.n}</div>
+          <div class="day-info">
+            <div class="day-title">${d.label}</div>
+            <div class="day-date">${acts.length} activiteit${acts.length !== 1 ? 'en' : ''}</div>
+          </div>
+          ${dayTotal > 0 ? `<div class="day-total">€${dayTotal}</div>` : ''}
+        </div>
+        ${acts.length
+          ? acts.map(a => dayCardHTML(a)).join('')
+          : `<div class="day-empty">Niets gepland — tik + om toe te voegen</div>`}
+      </div>`;
+  }).join('');
+
+  const wishlist = state.activities.filter(a => a.day === null);
+  document.getElementById('plan-wishlist-count').textContent = wishlist.length;
+  const wlEl = document.getElementById('planning-wishlist');
+  wlEl.innerHTML = wishlist.length
+    ? wishlist.map(a => dayCardHTML(a)).join('')
+    : `<div class="day-empty">Wishlist is leeg</div>`;
+}
+
+function dayCardHTML(a) {
+  const cat = CAT_COLORS[a.cat] || CAT_COLORS['Strand'];
+  return `
+    <div class="day-card" onclick="openDetail('${a.id}')">
+      <div class="day-card-dot" style="background:${cat.a}"></div>
+      <div class="day-card-body">
+        <div class="day-card-name">${esc(a.name)}</div>
+        <div class="day-card-sub">📍 ${esc(a.area)} · ${cat.emoji} ${esc(a.cat)}</div>
+      </div>
+      ${a.time && a.day !== null ? `<div class="day-card-time">${a.time}</div>` : ''}
+      <div class="day-card-price">${a.free ? 'Gratis' : esc(a.priceLabel)}</div>
+    </div>`;
+}
+
+function updateBudget() {
+  const total = state.activities.reduce((s,a) => s + (a.priceVal || 0), 0);
+  const planned = state.activities.filter(a => a.day !== null).length;
+  const wishlist = state.activities.filter(a => a.day === null).length;
+  document.getElementById('budget-total').textContent = `€${total}`;
+  document.getElementById('budget-acts').textContent = `€${total}`;
+  document.getElementById('budget-planned').textContent = planned;
+  document.getElementById('budget-wishlist').textContent = wishlist;
+  document.getElementById('header-budget').textContent = `💶 €${total}`;
+  document.getElementById('budget-sub').textContent = `p.p. · ${state.activities.length} activiteiten`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// DETAIL SHEET
+// ═══════════════════════════════════════════════════════════════
+
+function openDetail(id) {
+  const a = state.activities.find(x => x.id === id);
+  if (!a) return;
+  currentDetailId = id;
+  const cat = CAT_COLORS[a.cat] || CAT_COLORS['Strand'];
+
+  document.getElementById('detail-sheet-body').innerHTML = `
+    <div style="height:6px;background:linear-gradient(90deg,${cat.a},${cat.b});margin-bottom:16px"></div>
+    <div class="detail-header">
+      <div class="detail-cat-badge" style="background:${cat.a}20;color:${cat.a}">${cat.emoji} ${esc(a.cat)}</div>
+      <div class="detail-name">${esc(a.name)}</div>
+      ${a.blurb ? `<div class="detail-blurb">${esc(a.blurb)}</div>` : ''}
+    </div>
+    <div class="detail-info-grid">
+      <div class="detail-info-card">
+        <div class="detail-info-icon">📍</div>
+        <div class="detail-info-label">Locatie</div>
+        <div class="detail-info-val">${esc(a.area)}</div>
+      </div>
+      <div class="detail-info-card">
+        <div class="detail-info-icon">💶</div>
+        <div class="detail-info-label">Prijs</div>
+        <div class="detail-info-val">${esc(a.priceLabel)}</div>
+      </div>
+      <div class="detail-info-card">
+        <div class="detail-info-icon">🕐</div>
+        <div class="detail-info-label">Openingstijden</div>
+        <div class="detail-info-val">${esc(a.hours || '–')}</div>
+      </div>
+      <div class="detail-info-card">
+        <div class="detail-info-icon">⏱</div>
+        <div class="detail-info-label">Duur · Reistijd</div>
+        <div class="detail-info-val">${esc(a.dur || '–')} · ${esc(a.travel || '–')}</div>
+      </div>
+      ${a.reserve ? `
+      <div class="detail-info-card" style="grid-column:1/-1;background:rgba(239,143,76,.1)">
+        <div class="detail-info-icon">📋</div>
+        <div class="detail-info-label">Reservering</div>
+        <div class="detail-info-val" style="color:var(--orange)">Reservering vereist</div>
+      </div>` : ''}
+    </div>
+
+    <div class="detail-day-section">
+      <div class="detail-day-label">Inplannen op dag:</div>
+      <div class="day-selector" id="detail-day-selector">
+        ${DAYS.map(d => `
+          <button class="day-btn ${a.day === d.n ? 'selected' : ''}" data-day="${d.n}" onclick="updateActivityDay('${a.id}', ${d.n})">
+            Dag ${d.n}<br><span style="font-size:10px;opacity:.7">${d.date}</span>
+          </button>`).join('')}
+        <button class="day-btn wishlist ${a.day === null ? 'selected' : ''}" onclick="updateActivityDay('${a.id}', null)">
+          ⭐ Wishlist
+        </button>
+      </div>
+      ${a.day !== null ? `
+      <div class="time-input-row" style="margin-top:10px">
+        <span class="time-input-label">⏰ Tijdstip:</span>
+        <input type="time" class="time-input" id="detail-time" value="${a.time || '10:00'}" onchange="updateActivityTime('${a.id}', this.value)">
+      </div>` : ''}
+    </div>
+
+    <div class="detail-actions">
+      ${a.url ? `
+        <a href="${esc(a.url)}" target="_blank" rel="noopener" class="detail-action-btn btn-primary" style="display:flex;align-items:center;justify-content:center;gap:8px">
+          <svg width="16" height="16" fill="white" viewBox="0 0 24 24"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.86a8.17 8.17 0 004.77 1.52V6.93a4.85 4.85 0 01-1-.24z"/></svg>
+          Bekijk TikTok
+        </a>` : ''}
+      ${a.reserve ? `
+        <button class="detail-action-btn btn-orange" onclick="showToast('Open TikTok link voor reserveringsinfo')">
+          📋 Reserveer nu →
+        </button>` : ''}
+      <button class="detail-action-btn btn-danger" onclick="deleteActivity('${a.id}')">
+        🗑️ Verwijder activiteit
+      </button>
+    </div>
+    <div style="height:20px"></div>
+  `;
+
+  document.getElementById('detail-overlay').classList.add('open');
+}
+
+function updateActivityDay(id, day) {
+  const a = state.activities.find(x => x.id === id);
+  if (!a) return;
+  a.day = day;
+  saveState();
+  renderAll();
+  if (map) refreshMapMarkers();
+  openDetail(id);
+  showToast(day !== null ? `Dag ${day} gepland ✅` : 'Naar wishlist verplaatst');
+}
+
+function updateActivityTime(id, time) {
+  const a = state.activities.find(x => x.id === id);
+  if (!a) return;
+  a.time = time;
+  saveState();
+  renderAll();
+}
+
+function deleteActivity(id) {
+  state.activities = state.activities.filter(x => x.id !== id);
+  saveState();
+  closeDetailSheet();
+  renderAll();
+  if (map) refreshMapMarkers();
+  showToast('Activiteit verwijderd');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MAP (Leaflet + OpenStreetMap)
+// ═══════════════════════════════════════════════════════════════
+
+function initMap() {
+  if (map) return;
+  document.getElementById('map-loading').style.display = 'flex';
+
+  map = L.map('map', {
+    center: [36.28, 28.15], zoom: 10,
+    zoomControl: true, attributionControl: false,
+  });
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+  }).addTo(map);
+
+  // Hotel marker
+  const hotelIcon = L.divIcon({
+    html: `<div style="background:#ef8f4c;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;border:3px solid white;box-shadow:0 3px 12px rgba(0,0,0,.3)">🏨</div>`,
+    className: '', iconSize: [36, 36], iconAnchor: [18, 18],
+  });
+  L.marker([36.4412, 28.2247], { icon: hotelIcon })
+    .addTo(map)
+    .bindPopup(`<div class="map-popup-title">Angela Downtown Hotel</div><div class="map-popup-sub">📍 Jouw verblijf · Rhodos-stad</div>`);
+
+  document.getElementById('map-loading').style.display = 'none';
+  document.getElementById('map-legend').style.display = 'block';
+
+  refreshMapMarkers();
+  setTimeout(() => map.invalidateSize(), 100);
+}
+
+function refreshMapMarkers() {
+  if (!map) return;
+  Object.values(markers).forEach(m => map.removeLayer(m));
+  markers = {};
+
+  state.activities.forEach(a => {
+    if (!a.lat || !a.lng) return;
+    const cat = CAT_COLORS[a.cat] || CAT_COLORS['Strand'];
+    const icon = L.divIcon({
+      html: `<div style="background:${cat.a};width:32px;height:32px;border-radius:50% 50% 50% 0;display:flex;align-items:center;justify-content:center;font-size:14px;border:2.5px solid white;box-shadow:0 2px 8px rgba(0,0,0,.3);transform:rotate(-45deg)"><span style="transform:rotate(45deg)">${cat.emoji}</span></div>`,
+      className: '', iconSize: [32, 32], iconAnchor: [10, 32],
+    });
+    const m = L.marker([a.lat, a.lng], { icon, draggable: true })
+      .addTo(map)
+      .bindPopup(`<div class="map-popup-title">${esc(a.name)}</div><div class="map-popup-sub">📍 ${esc(a.area)} · ${esc(a.priceLabel)}</div><div style="margin-top:6px"><button class="map-popup-btn" onclick="window.openDetail('${a.id}')">Details →</button></div>`);
+
+    m.on('dragend', function(e) {
+      const pos = e.target.getLatLng();
+      const act = state.activities.find(x => x.id === a.id);
+      if (act) { act.lat = pos.lat; act.lng = pos.lng; saveState(); }
+    });
+
+    markers[a.id] = m;
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TABS
+// ═══════════════════════════════════════════════════════════════
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    t.classList.toggle('active', ['reis','planning','kaart'][i] === name);
+  });
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById(`panel-${name}`).classList.add('active');
+
+  if (name === 'kaart') {
+    setTimeout(() => { initMap(); if (map) map.invalidateSize(); }, 50);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SHEETS
+// ═══════════════════════════════════════════════════════════════
+
+function openAddSheet() {
+  currentAddResult = null;
+  document.getElementById('add-sheet-title').textContent = 'Activiteit toevoegen';
+  renderAddInput();
+  document.getElementById('add-overlay').classList.add('open');
+}
+
+function closeAddSheet(event) {
+  if (event && event.target !== event.currentTarget) return;
+  document.getElementById('add-overlay').classList.remove('open');
+}
+
+function closeDetailSheet(event) {
+  if (event && event.target !== event.currentTarget) return;
+  document.getElementById('detail-overlay').classList.remove('open');
+  currentDetailId = null;
+}
+
+function openSettings() {
+  const key = groqKey || localStorage.getItem('groq_api_key') || '';
+  document.getElementById('settings-api-key').value = key ? '•'.repeat(Math.min(key.length, 20)) : '';
+  document.getElementById('settings-overlay').classList.add('open');
+}
+
+function closeSettings(event) {
+  if (event && event.target !== event.currentTarget) return;
+  document.getElementById('settings-overlay').classList.remove('open');
+}
+
+function saveApiKey() {
+  const val = document.getElementById('settings-api-key').value.trim();
+  if (val && !val.startsWith('•')) {
+    groqKey = val;
+    localStorage.setItem('groq_api_key', val);
+    showToast('✅ API key opgeslagen');
+  } else if (!val) {
+    groqKey = '';
+    localStorage.removeItem('groq_api_key');
+    showToast('API key verwijderd');
+  }
+  closeSettings();
+}
+
+function clearAllData() {
+  if (!confirm('Weet je zeker dat je alle activiteiten wilt verwijderen?')) return;
+  state = { activities: [] };
+  saveState();
+  renderAll();
+  if (map) refreshMapMarkers();
+  closeSettings();
+  showToast('🗑️ Alle data verwijderd');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════════════════════════
+
+let toastTimer;
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CLOCK
+// ═══════════════════════════════════════════════════════════════
+
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent =
+    `${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════════════════════
+
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Expose openDetail globally for map popups
+window.openDetail = openDetail;
+
+// ═══════════════════════════════════════════════════════════════
+// DEMO DATA (first load)
+// ═══════════════════════════════════════════════════════════════
+
+function addDemoData() {
+  const demos = [
+    {
+      id: 'demo1', url: 'https://www.tiktok.com/@demo',
+      name: 'Lindos Akropolis', cat: 'Cultuur', catA: '#8b5cf6', catB: '#6d28d9',
+      area: 'Lindos', priceLabel: '€12 p.p.', priceVal: 12, free: false, reserve: false,
+      hours: '08:00-20:00', dur: '2 uur', travel: '55 min',
+      blurb: 'Het indrukwekkende monument van Lindos met spectaculair uitzicht op de baai.',
+      lat: 36.0908, lng: 28.0961, day: 2, time: '09:30', addedAt: Date.now() - 3000, tk: 'demo',
+    },
+    {
+      id: 'demo2', url: 'https://www.tiktok.com/@demo',
+      name: 'Anthony Quinn Bay', cat: 'Strand', catA: '#57c0d8', catB: '#2f7fc7',
+      area: 'Anthony Quinn Bay', priceLabel: 'Gratis', priceVal: 0, free: true, reserve: false,
+      hours: 'Altijd open', dur: '3 uur', travel: '20 min',
+      blurb: 'Crystal clear water in een beschutte baai, favoriet van de beroemde acteur.',
+      lat: 36.2867, lng: 28.1117, day: 1, time: '11:00', addedAt: Date.now() - 2000, tk: 'demo',
+    },
+    {
+      id: 'demo3', url: 'https://www.tiktok.com/@demo',
+      name: 'Kalithea Thermes', cat: 'Cultuur', catA: '#8b5cf6', catB: '#6d28d9',
+      area: 'Kalithea', priceLabel: '€4 p.p.', priceVal: 4, free: false, reserve: false,
+      hours: '08:00-20:00', dur: '1.5 uur', travel: '15 min',
+      blurb: 'Italiaans art deco complex met prachtige mozaïeken direct aan zee.',
+      lat: 36.3583, lng: 28.2333, day: null, time: '10:00', addedAt: Date.now() - 1000, tk: 'demo',
+    },
+    {
+      id: 'demo4', url: 'https://www.tiktok.com/@demo',
+      name: 'Tsambika Beach', cat: 'Strand', catA: '#57c0d8', catB: '#2f7fc7',
+      area: 'Tsambika', priceLabel: 'Gratis', priceVal: 0, free: true, reserve: false,
+      hours: 'Altijd open', dur: '4 uur', travel: '35 min',
+      blurb: 'Eén van de mooiste stranden van Rhodos met goud zand en turquoise water.',
+      lat: 36.2389, lng: 28.1797, day: 3, time: '10:00', addedAt: Date.now(), tk: 'demo',
+    },
+  ];
+  state.activities = demos;
+  saveState();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════
+
+loadState();
+if (state.activities.length === 0) addDemoData();
+updateClock();
+setInterval(updateClock, 30000);
+renderAll();
+</script>
+</body>
+</html>
