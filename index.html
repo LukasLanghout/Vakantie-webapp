@@ -135,16 +135,43 @@ async function handleAuth() {
   const password = document.getElementById('auth-password').value.trim();
   if (!email || !password) { showMessage('Voer email en wachtwoord in', 'error'); return; }
 
-  const fn = isSignup ? 'signUp' : 'signInWithPassword';
-  const { data, error } = await _sb.auth[fn]({ email, password });
-  if (error) { showMessage(error.message, 'error'); return; }
+  document.getElementById('btn-submit').textContent = '⏳ Bezig...';
+  document.getElementById('btn-submit').disabled = true;
 
-  currentUser = data.user;
-  if (isSignup && currentUser) {
-    await _sb.from('triply_users').upsert([{ id: currentUser.id, email }], { onConflict: 'id' });
+  try {
+    if (isSignup) {
+      const { data, error } = await _sb.auth.signUp({ email, password });
+      if (error) { showMessage(error.message, 'error'); return; }
+
+      if (data.session) {
+        // Auto-confirmed (trigger actief) — direct inloggen
+        currentUser = data.user;
+        await _sb.from('triply_users').upsert([{ id: currentUser.id, email }], { onConflict: 'id' });
+        showMessage('Account aangemaakt! 🎉', 'success');
+        setTimeout(() => showTripSelector(), 800);
+      } else {
+        // Email bevestiging vereist
+        document.getElementById('auth-message').innerHTML = `
+          <div class="success" style="text-align:center;line-height:1.6;padding:12px;background:#f0fdf4;border-radius:10px">
+            ✅ <b>Account aangemaakt!</b><br>
+            Check je e-mail (<b>${email}</b>) voor de bevestigingslink.<br>
+            Daarna kun je hier inloggen.
+          </div>`;
+        isSignup = false;
+        document.getElementById('btn-submit').textContent = 'Inloggen';
+        document.getElementById('btn-toggle').textContent = 'Nieuw account';
+      }
+    } else {
+      const { data, error } = await _sb.auth.signInWithPassword({ email, password });
+      if (error) { showMessage(error.message, 'error'); return; }
+      currentUser = data.user;
+      showMessage('Welkom terug! 👋', 'success');
+      setTimeout(() => showTripSelector(), 500);
+    }
+  } finally {
+    document.getElementById('btn-submit').disabled = false;
+    document.getElementById('btn-submit').textContent = isSignup ? 'Account aanmaken' : 'Inloggen';
   }
-  showMessage('Welkom! 🎉', 'success');
-  setTimeout(() => showTripSelector(), 800);
 }
 
 async function handleLogout() {
