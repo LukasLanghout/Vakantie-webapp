@@ -2,6 +2,7 @@ import { getCurrentUser } from './supabase-client.js';
 import { uiAuth } from './ui-auth.js';
 import { uiTrips } from './ui-trips.js';
 import { uiGroups } from './ui-groups.js';
+import { uiPlanner } from './ui-planner.js';
 
 export const router = {
   async init() {
@@ -44,12 +45,12 @@ export const router = {
         break;
       case 'planner':
         const plannerTripId = url.searchParams.get('trip');
+        const groupId = url.searchParams.get('group');
         if (!plannerTripId) {
           window.location.href = '/?page=trips';
           return;
         }
-        // Load original planner app
-        window.location.href = '/?page=planner-app&trip=' + plannerTripId;
+        await uiPlanner.init(plannerTripId, groupId || null);
         break;
       default:
         document.body.innerHTML = uiAuth.renderLoginScreen();
