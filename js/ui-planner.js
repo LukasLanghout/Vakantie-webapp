@@ -2,6 +2,7 @@ import { activitiesService } from './activities-service.js';
 import { tripsService } from './trips-service.js';
 import { groupsService } from './groups-service.js';
 import { destinationService } from './destination-service.js';
+import { tiktokAnalyzer } from './tiktok-analyzer.js';
 
 const CAT_COLORS = {
   'Strand': { a: '#57c0d8', b: '#2f7fc7', emoji: '🏖️' },
@@ -320,13 +321,92 @@ export const uiPlanner = {
     }
   },
 
+  openSettings() {
+    const overlay = document.getElementById('add-overlay');
+    if (overlay) {
+      overlay.style.display = 'flex';
+      document.getElementById('add-sheet-body').innerHTML = `
+        <div style="margin-bottom: 20px;">
+          <div style="font-size: 12px; font-weight: 700; color: var(--navy); margin-bottom: 6px;">🔑 Groq API Key</div>
+          <p style="font-size: 11px; color: var(--text); margin-bottom: 8px; line-height: 1.5;">
+            Haal gratis een API key op via <strong>console.groq.com</strong>. Slaat lokaal op in je browser.
+          </p>
+          <input type="password" id="api-key-input" placeholder="gsk_..." value="${localStorage.getItem('groq_api_key') || ''}" style="width: 100%; padding: 12px; border-radius: 12px; border: 2px solid var(--border); font-size: 13px; color: var(--navy); background: #f7f9fb; outline: none; font-family: monospace;">
+        </div>
+
+        <button onclick="window.uiPlanner.saveApiKey()" style="width: 100%; padding: 12px; border-radius: 12px; background: linear-gradient(135deg, var(--green), #4dc8aa); color: white; font-size: 14px; font-weight: 700;">Opslaan</button>
+      `;
+    }
+  },
+
+  saveApiKey() {
+    const key = document.getElementById('api-key-input')?.value || '';
+    if (!key) {
+      alert('Voer een API key in');
+      return;
+    }
+    localStorage.setItem('groq_api_key', key);
+    this.closeAddActivity();
+    alert('API key opgeslagen!');
+  },
+
   closeAddActivity() {
     const overlay = document.getElementById('add-overlay');
     if (overlay) overlay.style.display = 'none';
   },
 
   async analyzeActivities() {
-    alert('TikTok integratie wordt in fase 4 geïmplementeerd. Voor nu: upload manueel activities!');
+    const input = document.getElementById('tiktok-urls')?.value || '';
+    const urls = input.split('\n').filter(u => u.includes('tiktok.com')).map(u => u.trim());
+
+    if (urls.length === 0) {
+      alert('Geen geldige TikTok links gevonden');
+      return;
+    }
+
+    const apiKey = localStorage.getItem('groq_api_key') || '';
+    if (!apiKey) {
+      alert('Groq API key niet ingesteld. Stel deze in via instellingen.');
+      return;
+    }
+
+    // Show progress UI
+    const sheetBody = document.getElementById('add-sheet-body');
+    sheetBody.innerHTML = `
+      <div style="text-align: center; padding: 20px;">
+        <div style="width: 40px; height: 40px; border: 3px solid var(--border); border-top-color: var(--blue); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px;"></div>
+        <div style="font-size: 14px; color: var(--navy); font-weight: 700; margin-bottom: 8px;">Analyseren...</div>
+        <div id="progress-text" style="font-size: 12px; color: var(--text);">0/${urls.length}</div>
+      </div>
+      <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+    `;
+
+    const { results, errors } = await tiktokAnalyzer.analyzeTikToks(
+      urls,
+      this.state.trip.destination,
+      this.state.trip.id,
+      apiKey,
+      (current, status) => {
+        const progressEl = document.getElementById('progress-text');
+        if (progressEl) progressEl.textContent = current;
+      }
+    );
+
+    // Save activities
+    for (const activity of results) {
+      await activitiesService.createActivity(this.state.trip.id, activity);
+    }
+
+    // Reload
+    this.state.activities = await activitiesService.getActivitiesByTrip(this.state.trip.id);
+    this.renderActivityLists();
+    this.closeAddActivity();
+
+    if (results.length > 0) {
+      alert(`${results.length} activiteiten toegevoegd!\n\n${errors.length > 0 ? errors.length + ' overgeslagen' : 'Alles gelukt!'}`);
+    } else {
+      alert(`Geen activiteiten gevonden. ${errors.length} links overgeslagen.`);
+    }
   },
 
   showActivityDetail(activityId) {

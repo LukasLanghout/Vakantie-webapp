@@ -50,8 +50,9 @@ export const uiTrips = {
 
           <div style="padding: 16px; flex-shrink: 0; background: #f7f9fb; border-top: 1px solid var(--border);">
             <button onclick="window.uiTrips.showCreateTrip()" style="width: 100%; padding: 14px; border-radius: 12px; background: linear-gradient(135deg, var(--blue), var(--teal)); color: white; font-size: 15px; font-weight: 700; margin-bottom: 8px;">+ Nieuwe Reis</button>
-            <button onclick="window.uiTrips.showJoinGroup()" style="width: 100%; padding: 14px; border-radius: 12px; background: transparent; border: 2px solid var(--border); color: var(--navy); font-size: 15px; font-weight: 700;">Groep Joinen</button>
-            <button onclick="window.uiTrips.handleLogout()" style="width: 100%; padding: 12px; border-radius: 12px; background: transparent; color: var(--text); font-size: 13px; font-weight: 600; margin-top: 8px;">Uitloggen</button>
+            <button onclick="window.uiTrips.showJoinGroup()" style="width: 100%; padding: 14px; border-radius: 12px; background: transparent; border: 2px solid var(--border); color: var(--navy); font-size: 15px; font-weight: 700; margin-bottom: 8px;">Groep Joinen</button>
+            <button onclick="window.uiTrips.showSettings()" style="width: 100%; padding: 12px; border-radius: 12px; background: transparent; border: 2px solid var(--border); color: var(--navy); font-size: 13px; font-weight: 600; margin-bottom: 8px;">⚙️ Instellingen</button>
+            <button onclick="window.uiTrips.handleLogout()" style="width: 100%; padding: 12px; border-radius: 12px; background: transparent; color: var(--red); font-size: 13px; font-weight: 600;">Uitloggen</button>
           </div>
         </div>
       </div>
@@ -244,8 +245,74 @@ export const uiTrips = {
     }
   },
 
+  async showSettings() {
+    document.body.innerHTML = `
+      <div class="phone-wrap">
+        <div class="phone">
+          <div class="status-bar">
+            <span class="time" id="clock">9:41</span>
+            <div class="status-icons">
+              <svg width="16" height="12" viewBox="0 0 16 12"><rect x="0" y="3" width="3" height="9" rx="1" opacity=".4"/><rect x="4" y="2" width="3" height="10" rx="1" opacity=".6"/><rect x="8" y="0" width="3" height="12" rx="1" opacity=".8"/><rect x="12" y="0" width="3" height="12" rx="1"/></svg>
+              <svg width="15" height="12" viewBox="0 0 15 12"><path d="M7.5 2.5c2.8 0 5.3 1.1 7.1 2.9L7.5 12 .4 5.4C2.2 3.6 4.7 2.5 7.5 2.5z" opacity=".4"/><path d="M7.5 5c1.6 0 3.1.7 4.2 1.7L7.5 12l-4.2-5.3C4.4 5.7 5.9 5 7.5 5z" opacity=".7"/><path d="M7.5 7.5c.9 0 1.7.4 2.2 1L7.5 12l-2.2-3.5c.5-.6 1.3-1 2.2-1z"/></svg>
+              <svg width="25" height="12" viewBox="0 0 25 12"><rect x="0" y="1" width="22" height="10" rx="3" stroke="white" stroke-width="1.5" fill="none" opacity=".4"/><rect x="23" y="4" width="2" height="4" rx="1" fill="white" opacity=".4"/><rect x="1.5" y="2.5" width="17" height="7" rx="2" fill="white"/></svg>
+            </div>
+          </div>
+
+          <div style="background: var(--navy); padding: 16px 20px; color: white; flex-shrink: 0; display: flex; align-items: center; gap: 12px;">
+            <button onclick="window.location.href='/?page=trips'" style="width: 32px; height: 32px; border-radius: 8px; background: rgba(255,255,255,.1); display: flex; align-items: center; justify-content: center; color: white; border: none; cursor: pointer;">←</button>
+            <div>
+              <div style="font-family: 'Baloo 2', sans-serif; font-size: 16px; font-weight: 800;">Instellingen</div>
+            </div>
+          </div>
+
+          <div style="flex: 1; overflow-y: auto; padding: 20px;">
+            <div style="margin-bottom: 20px;">
+              <div style="font-size: 12px; font-weight: 700; color: var(--navy); margin-bottom: 6px;">🔑 Groq API Key</div>
+              <p style="font-size: 11px; color: var(--text); margin-bottom: 8px; line-height: 1.5;">
+                Voor TikTok analyse nodig. Haal gratis op via <strong>console.groq.com</strong>.
+              </p>
+              <input type="password" id="api-key-input" placeholder="gsk_..." value="${localStorage.getItem('groq_api_key') || ''}" style="width: 100%; padding: 12px; border-radius: 12px; border: 2px solid var(--border); font-size: 13px; color: var(--navy); background: #f7f9fb; outline: none; font-family: monospace;">
+            </div>
+
+            <div style="margin-bottom: 20px;">
+              <div style="font-size: 12px; font-weight: 700; color: var(--navy); margin-bottom: 6px;">Taal</div>
+              <select style="width: 100%; padding: 12px; border-radius: 12px; border: 2px solid var(--border); font-size: 13px; background: #f7f9fb;">
+                <option>Nederlands</option>
+                <option>English</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="padding: 16px; flex-shrink: 0; border-top: 1px solid var(--border);">
+            <button onclick="window.uiTrips.saveSettings()" style="width: 100%; padding: 14px; border-radius: 12px; background: linear-gradient(135deg, var(--green), #4dc8aa); color: white; font-size: 15px; font-weight: 700;">Opslaan</button>
+          </div>
+        </div>
+      </div>
+    `;
+    this.updateClock();
+    setInterval(() => this.updateClock(), 1000);
+  },
+
+  saveSettings() {
+    const apiKey = document.getElementById('api-key-input')?.value || '';
+    if (apiKey) {
+      localStorage.setItem('groq_api_key', apiKey);
+    }
+    alert('Instellingen opgeslagen!');
+    window.location.href = '/?page=trips';
+  },
+
+  updateClock() {
+    const clockEl = document.getElementById('clock');
+    if (clockEl) {
+      const now = new Date();
+      clockEl.textContent = now.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
+    }
+  },
+
   async handleLogout() {
     if (confirm('Zeker dat je wilt uitloggen?')) {
+      const { authService } = await import('./auth-service.js');
       await authService.signOut();
       window.location.href = '/';
     }
