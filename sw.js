@@ -24,6 +24,6 @@ self.addEventListener('fetch', e => {
         caches.open(CACHE).then(c => c.put(e.request, clone)).catch(() => {});
         return r;
       })
-      .catch(() => caches.match(e.request) || new Response('Offline'))
+      .catch(() => caches.match(e.request).then(cached => cached || new Response('Offline', { status: 503 })))
   );
 });
