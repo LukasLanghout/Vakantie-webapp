@@ -199,6 +199,15 @@ select:focus { outline: none; border-color: var(--blue); }
 .code-box { font-family: monospace; font-size: 22px; font-weight: 800; color: var(--navy);
   text-align: center; padding: 14px; background: var(--border); border-radius: 12px;
   letter-spacing: 4px; margin: 10px 0; }
+
+/* Join code input */
+.code-inputs { display: flex; gap: 10px; justify-content: center; margin: 24px 0; }
+.code-char { width: 48px; height: 58px; border: 2px solid var(--border); border-radius: 14px;
+  font-size: 24px; font-weight: 800; font-family: monospace; text-align: center;
+  color: var(--navy); background: white; outline: none; text-transform: uppercase;
+  transition: border-color .15s, box-shadow .15s; -webkit-appearance: none; }
+.code-char:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(47,127,199,.15); }
+.code-char.filled { border-color: var(--teal); background: rgba(78,205,196,.06); }
 .member-item { display: flex; align-items: center; gap: 10px; padding: 10px;
   background: white; border-radius: 10px; margin-bottom: 6px; border: 1.5px solid var(--border); }
 .member-avatar { width: 32px; height: 32px; border-radius: 50%;
@@ -273,13 +282,31 @@ select:focus { outline: none; border-color: var(--blue); }
     <div id="trip-message"></div>
     <div id="trips-list"></div>
     <button class="btn btn-primary" onclick="showCreateTrip()" style="margin-top:8px">+ Nieuwe reis aanmaken</button>
-    <div class="divider">of vriend heeft al een reis?</div>
-    <div style="display:flex;gap:8px">
-      <input type="text" id="trip-join-code" placeholder="Code invoeren (bijv. ABC123)" style="text-transform:uppercase;margin:0;flex:1">
-      <button class="btn btn-secondary" onclick="joinTripByCode()" style="margin:0;white-space:nowrap;padding:0 16px">Joinen</button>
-    </div>
-    <div style="margin-top:12px">
+    <div class="divider">of</div>
+    <button class="btn btn-secondary" onclick="showJoinScreen()">🔑 Reis joinen met code</button>
+    <div style="margin-top:10px">
       <button class="btn btn-secondary" style="font-size:12px;padding:10px" onclick="handleLogout()">Uitloggen</button>
+    </div>
+  </div>
+</div>
+
+<!-- Join Trip Screen -->
+<div id="join-screen" class="auth-wrap">
+  <div class="auth-card">
+    <div class="auth-title">🔑 Code invoeren</div>
+    <p style="color:var(--text);font-size:14px;text-align:center;margin-bottom:4px">Vraag de 6-tekens code aan degene die de reis heeft aangemaakt.</p>
+    <div class="code-inputs">
+      <input class="code-char" id="cc0" maxlength="1" inputmode="text" autocomplete="off" oninput="codeInput(0)" onkeydown="codeKey(event,0)">
+      <input class="code-char" id="cc1" maxlength="1" inputmode="text" autocomplete="off" oninput="codeInput(1)" onkeydown="codeKey(event,1)">
+      <input class="code-char" id="cc2" maxlength="1" inputmode="text" autocomplete="off" oninput="codeInput(2)" onkeydown="codeKey(event,2)">
+      <input class="code-char" id="cc3" maxlength="1" inputmode="text" autocomplete="off" oninput="codeInput(3)" onkeydown="codeKey(event,3)">
+      <input class="code-char" id="cc4" maxlength="1" inputmode="text" autocomplete="off" oninput="codeInput(4)" onkeydown="codeKey(event,4)">
+      <input class="code-char" id="cc5" maxlength="1" inputmode="text" autocomplete="off" oninput="codeInput(5)" onkeydown="codeKey(event,5)">
+    </div>
+    <div id="join-message"></div>
+    <button class="btn btn-primary" id="join-btn" onclick="joinTripByCode()">Joinen</button>
+    <div style="margin-top:10px">
+      <button class="btn btn-secondary" onclick="showTripSelector()">← Terug</button>
     </div>
   </div>
 </div>
@@ -564,6 +591,39 @@ function showCreateTrip() {
   showScreen('create-trip-screen');
 }
 
+function showJoinScreen() {
+  showScreen('join-screen');
+  // Clear all code chars
+  for (let i = 0; i < 6; i++) {
+    const el = document.getElementById('cc' + i);
+    el.value = '';
+    el.classList.remove('filled');
+  }
+  document.getElementById('join-message').innerHTML = '';
+  document.getElementById('join-btn').disabled = false;
+  setTimeout(() => document.getElementById('cc0').focus(), 100);
+}
+
+function codeInput(i) {
+  const el = document.getElementById('cc' + i);
+  const val = el.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  el.value = val;
+  el.classList.toggle('filled', val.length > 0);
+  if (val && i < 5) document.getElementById('cc' + (i + 1)).focus();
+  // Auto-submit when all 6 filled
+  const code = Array.from({length:6}, (_,j) => document.getElementById('cc'+j).value).join('');
+  if (code.length === 6) joinTripByCode();
+}
+
+function codeKey(e, i) {
+  if (e.key === 'Backspace' && !document.getElementById('cc' + i).value && i > 0) {
+    const prev = document.getElementById('cc' + (i - 1));
+    prev.value = '';
+    prev.classList.remove('filled');
+    prev.focus();
+  }
+}
+
 async function loadTrips() {
   // Eigen trips
   const { data: ownTrips } = await _sb.from('triply_trips')
@@ -593,20 +653,25 @@ async function loadTrips() {
 }
 
 async function joinTripByCode() {
-  const code = (document.getElementById('trip-join-code').value || '').trim().toUpperCase();
-  if (!code) { document.getElementById('trip-message').innerHTML = '<div class="error">Voer een code in</div>'; return; }
+  const code = Array.from({length:6}, (_,i) => document.getElementById('cc'+i).value).join('').toUpperCase();
+  if (code.length < 6) { document.getElementById('join-message').innerHTML = '<div class="error">Vul alle 6 tekens in</div>'; return; }
+
+  const btn = document.getElementById('join-btn');
+  btn.disabled = true;
+  btn.textContent = 'Zoeken...';
+  document.getElementById('join-message').innerHTML = '';
 
   const { data: group, error } = await _sb.from('triply_groups').select('*').eq('share_code', code).single();
-  if (error || !group) { document.getElementById('trip-message').innerHTML = '<div class="error">Code niet gevonden</div>'; return; }
+  if (error || !group) {
+    document.getElementById('join-message').innerHTML = '<div class="error">Code niet gevonden. Controleer de code en probeer opnieuw.</div>';
+    btn.disabled = false;
+    btn.textContent = 'Joinen';
+    return;
+  }
 
-  // Voeg toe als groepslid (negeer duplicate fout)
   await _sb.from('triply_group_members').insert([{ group_id: group.id, user_id: currentUser.id }]);
-
-  document.getElementById('trip-join-code').value = '';
-  document.getElementById('trip-message').innerHTML = '<div class="success">✅ Reis gevonden!</div>';
-  await loadTrips();
-  // Open de reis direct
-  selectTrip(group.trip_id);
+  document.getElementById('join-message').innerHTML = '<div class="success">✅ Gejoined!</div>';
+  setTimeout(() => selectTrip(group.trip_id), 600);
 }
 
 async function createTrip() {
