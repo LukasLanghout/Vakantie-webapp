@@ -870,7 +870,7 @@ ${context}
 Bestemming: ${currentTrip.destination}
 
 JSON formaat (vul ECHTE waarden in, niet de voorbeelden):
-{"name":"<naam activiteit max 30 tekens>","category":"<Strand of Cultuur of Natuur of Eten & drinken of Avontuur of Uitzicht of Dagtrip>","area":"<specifieke buurt of locatie in ${currentTrip.destination}>","lat":<breedtegraad als decimaal getal>,"lng":<lengtegraad als decimaal getal>,"priceVal":<prijs in euro als getal>,"free":<true of false>,"description":"<1-2 zinnen in het Nederlands over wat het is en waarom leuk>"}` }
+{"name":"<naam activiteit max 30 tekens>","category":"<Strand of Cultuur of Natuur of Eten & drinken of Avontuur of Uitzicht of Dagtrip>","area":"<naam van de specifieke plek/locatie, bijv. 'Lindos', 'Acropolis Rhodos', 'Old Town'>","priceVal":<prijs in euro als getal, 0 als gratis>,"free":<true of false>,"description":"<1-2 zinnen in het Nederlands over wat het is en waarom leuk>"}` }
         ],
         temperature: 0.3,
         max_tokens: 400,
@@ -883,6 +883,21 @@ JSON formaat (vul ECHTE waarden in, niet de voorbeelden):
     const text = data.choices[0].message.content;
     const json = JSON.parse(text.match(/\{[\s\S]*\}/)[0]);
 
+    // Geocode de locatienaam via OpenStreetMap Nominatim
+    let lat = null, lng = null;
+    if (json.area) {
+      document.getElementById('add-btn').textContent = '📍 Locatie opzoeken...';
+      const query = encodeURIComponent(`${json.area}, ${currentTrip.destination}`);
+      try {
+        const geo = await fetch(
+          `https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1`,
+          { headers: { 'Accept-Language': 'nl', 'User-Agent': 'Triply/1.0' } }
+        );
+        const geoData = await geo.json();
+        if (geoData[0]) { lat = parseFloat(geoData[0].lat); lng = parseFloat(geoData[0].lon); }
+      } catch (_) {}
+    }
+
     const dayVal = document.getElementById('activity-day').value;
     const timeVal = document.getElementById('activity-time-select').value;
 
@@ -892,8 +907,8 @@ JSON formaat (vul ECHTE waarden in, niet de voorbeelden):
       name: json.name,
       category: json.category,
       area: json.area,
-      lat: json.lat || null,
-      lng: json.lng || null,
+      lat,
+      lng,
       price_value: json.priceVal || 0,
       is_free: json.free ?? (json.priceVal === 0),
       description: json.description,
