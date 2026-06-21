@@ -200,6 +200,19 @@ select:focus { outline: none; border-color: var(--blue); }
   text-align: center; padding: 14px; background: var(--border); border-radius: 12px;
   letter-spacing: 4px; margin: 10px 0; }
 
+/* Activity author */
+.activity-author { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text); margin-top:8px; }
+.author-avatar { width:22px; height:22px; border-radius:50%; background:var(--teal); display:flex; align-items:center; justify-content:center; font-size:13px; flex-shrink:0; }
+
+/* Account tab */
+.avatar-grid { display:grid; grid-template-columns:repeat(6,1fr); gap:8px; margin:12px 0; }
+.avatar-option { font-size:28px; text-align:center; padding:6px; border-radius:12px; cursor:pointer;
+  border:2.5px solid transparent; transition:border-color .15s, transform .1s; }
+.avatar-option:hover { transform:scale(1.15); }
+.avatar-option.selected { border-color:var(--blue); background:rgba(47,127,199,.1); }
+.account-avatar-big { width:72px; height:72px; border-radius:50%; background:var(--teal);
+  display:flex; align-items:center; justify-content:center; font-size:38px; margin:0 auto 16px; }
+
 /* Join code input */
 .code-inputs { display: flex; gap: 10px; justify-content: center; margin: 24px 0; }
 .code-char { width: 48px; height: 58px; border: 2px solid var(--border); border-radius: 14px;
@@ -340,10 +353,11 @@ select:focus { outline: none; border-color: var(--blue); }
     </div>
 
     <div class="tabs">
-      <div class="tab active" onclick="switchTab('planning', this)">📅 Planning</div>
-      <div class="tab" onclick="switchTab('activities', this)">📍 Activiteiten</div>
-      <div class="tab" onclick="switchTab('map', this)">🗺️ Kaart</div>
-      <div class="tab" onclick="switchTab('group', this)">👥 Groep</div>
+      <div class="tab active" onclick="switchTab('planning', this)">📅</div>
+      <div class="tab" onclick="switchTab('activities', this)">📍</div>
+      <div class="tab" onclick="switchTab('map', this)">🗺️</div>
+      <div class="tab" onclick="switchTab('group', this)">👥</div>
+      <div class="tab" onclick="switchTab('account', this)">👤</div>
     </div>
 
     <div class="content">
@@ -358,6 +372,9 @@ select:focus { outline: none; border-color: var(--blue); }
       </div>
       <div id="group-tab" class="tab-content">
         <div id="group-content"></div>
+      </div>
+      <div id="account-tab" class="tab-content">
+        <div id="account-content"></div>
       </div>
     </div>
 
@@ -711,6 +728,9 @@ async function selectTrip(tripId) {
   currentTrip = data;
   tripDays = getDaysArray(data.start_date, data.end_date);
 
+  // Reset map so it re-geocodes for the new destination
+  if (leafletMap) { leafletMap.remove(); leafletMap = null; mapMarkers = []; }
+
   document.getElementById('trip-title').textContent = data.name;
   document.getElementById('trip-dates').textContent = `${data.destination} · ${data.start_date} → ${data.end_date}`;
 
@@ -735,6 +755,7 @@ function switchTab(name, el) {
   if (tab) tab.classList.add('active');
   if (name === 'map') initMap();
   if (name === 'group') loadGroup();
+  if (name === 'account') loadAccount();
 }
 
 // ── Planning tab ──────────────────────────────────────
@@ -765,9 +786,15 @@ async function loadPlanning() {
 // ── Activities tab ────────────────────────────────────
 async function loadActivities() {
   const { data: acts } = await _sb.from('triply_activities')
-    .select('*').eq('trip_id', currentTrip.id).order('created_at', { ascending: false });
+    .select('*, triply_users(username, avatar_url)')
+    .eq('trip_id', currentTrip.id).order('created_at', { ascending: false });
 
-  document.getElementById('activities-content').innerHTML = (acts || []).map(a => `
+  document.getElementById('activities-content').innerHTML = (acts || []).map(a => {
+    const author = a.triply_users;
+    const authorName = author?.username || 'Onbekend';
+    const authorAvatar = author?.avatar_url || authorName[0].toUpperCase();
+    const isEmoji = authorAvatar && authorAvatar.length <= 2 && authorAvatar !== authorName[0].toUpperCase();
+    return `
     <div class="activity-card" id="act-${a.id}">
       <div class="activity-top">
         <div class="activity-name">${a.name}</div>
@@ -785,8 +812,12 @@ async function loadActivities() {
         <span class="activity-location" onclick="openMaps('${(a.area||'').replace(/'/g,"\\'")}',${a.lat||0},${a.lng||0})">📍 ${a.area||'Locatie onbekend'} — Open in Maps</span>
         ${a.tiktok_url ? `<span class="tiktok-link" onclick="window.open('${a.tiktok_url}','_blank')">▶ TikTok</span>` : ''}
       </div>
-    </div>
-  `).join('') || '<div style="text-align:center;color:var(--text);padding:30px;font-size:13px">Nog geen activiteiten. Tik ➕ om toe te voegen!</div>';
+      <div class="activity-author">
+        <div class="author-avatar">${isEmoji ? authorAvatar : authorName[0].toUpperCase()}</div>
+        <span>Toegevoegd door <strong>${authorName}</strong></span>
+      </div>
+    </div>`;
+  }).join('') || '<div style="text-align:center;color:var(--text);padding:30px;font-size:13px">Nog geen activiteiten. Tik ➕ om toe te voegen!</div>';
 }
 
 async function deleteActivity(id) {
@@ -809,10 +840,24 @@ function initMap() {
   } else { createMap(); }
 }
 
-function createMap() {
+async function createMap() {
   const container = document.getElementById('map-container');
   if (!container || leafletMap) return;
-  leafletMap = L.map(container).setView([36.28, 28.15], 11);
+
+  let centerLat = 36.28, centerLng = 28.15;
+  if (currentTrip?.destination) {
+    try {
+      const query = encodeURIComponent(currentTrip.destination);
+      const geo = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1`,
+        { headers: { 'Accept-Language': 'nl', 'User-Agent': 'Triply/1.0' } }
+      );
+      const geoData = await geo.json();
+      if (geoData[0]) { centerLat = parseFloat(geoData[0].lat); centerLng = parseFloat(geoData[0].lon); }
+    } catch (_) {}
+  }
+
+  leafletMap = L.map(container).setView([centerLat, centerLng], 11);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap'
   }).addTo(leafletMap);
@@ -856,7 +901,7 @@ async function loadGroup() {
   let html = '';
   for (const g of groups) {
     const { data: members } = await _sb.from('triply_group_members')
-      .select('*, triply_users(email, username)').eq('group_id', g.id);
+      .select('*, triply_users(email, username, avatar_url)').eq('group_id', g.id);
     html += `
       <div class="section-title">${g.name}</div>
       <div class="code-box">${g.share_code}</div>
@@ -864,8 +909,9 @@ async function loadGroup() {
       <div class="section-title" style="margin-top:12px">Deelnemers</div>
       ${(members||[]).map(m => {
         const name = m.triply_users?.username || m.triply_users?.email || 'Onbekend';
+        const emoji = m.triply_users?.avatar_url;
         return `<div class="member-item">
-          <div class="member-avatar">${name[0].toUpperCase()}</div>
+          <div class="member-avatar" style="${emoji ? 'font-size:18px' : ''}">${emoji || name[0].toUpperCase()}</div>
           <div class="member-name">${name}</div>
         </div>`;
       }).join('')}`;
@@ -900,6 +946,52 @@ async function joinGroup() {
 
 function copyCode(code) {
   navigator.clipboard.writeText(code).then(() => toast(`Code ${code} gekopieerd! 📋`));
+}
+
+// ── Account tab ───────────────────────────────────────
+const AVATARS = ['🦁','🐯','🐻','🦊','🐼','🐨','🐸','🦋','🦄','🐬','🦅','🌺','🍀','⚡','🎯','🏄','🎸','🌊','🏔','🌙','🎪','🚀','🌴','🦩'];
+var _selectedAvatar = '';
+
+async function loadAccount() {
+  const { data: user } = await _sb.from('triply_users').select('username, avatar_url').eq('id', currentUser.id).single();
+  _selectedAvatar = user?.avatar_url || '';
+  const currentName = user?.username || '';
+
+  document.getElementById('account-content').innerHTML = `
+    <div style="text-align:center;margin:16px 0 24px">
+      <div class="account-avatar-big" id="preview-avatar">${_selectedAvatar || '👤'}</div>
+      <div style="font-size:17px;font-weight:700;color:var(--navy);margin-bottom:4px">${currentName || 'Geen naam'}</div>
+      <div style="font-size:12px;color:var(--text)">${currentUser.email}</div>
+    </div>
+    <div class="section-title">Kies een avatar</div>
+    <div class="avatar-grid">
+      ${AVATARS.map(e => `<div class="avatar-option${e === _selectedAvatar ? ' selected' : ''}" onclick="selectAvatar('${e}',this)">${e}</div>`).join('')}
+    </div>
+    <div class="section-title">Weergavenaam</div>
+    <input type="text" id="account-name" value="${currentName}" placeholder="Jouw naam (bijv. Lisa)" maxlength="30">
+    <button class="btn btn-primary" onclick="saveAccount()">Opslaan</button>
+  `;
+}
+
+function selectAvatar(emoji, el) {
+  _selectedAvatar = emoji;
+  document.querySelectorAll('.avatar-option').forEach(o => o.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('preview-avatar').textContent = emoji;
+}
+
+async function saveAccount() {
+  const name = document.getElementById('account-name').value.trim();
+  if (!name) { toast('Voer een naam in'); return; }
+  const { error } = await _sb.from('triply_users').upsert([{
+    id: currentUser.id,
+    email: currentUser.email,
+    username: name,
+    avatar_url: _selectedAvatar,
+  }], { onConflict: 'id' });
+  if (error) { toast('Fout: ' + error.message); return; }
+  toast('Profiel opgeslagen! ✅');
+  document.querySelector('.account-avatar-big').textContent = _selectedAvatar || name[0].toUpperCase();
 }
 
 // ── AI Activity Analysis ──────────────────────────────
