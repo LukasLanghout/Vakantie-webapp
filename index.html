@@ -349,7 +349,10 @@ select:focus { outline: none; border-color: var(--blue); }
   <div class="modal" onclick="event.stopPropagation()">
     <div class="modal-close" onclick="closeAddActivityModal()">✕</div>
     <div class="modal-title">Activiteit toevoegen</div>
-    <textarea id="activity-url" placeholder="Plak een TikTok URL of beschrijf de activiteit..."></textarea>
+    <div style="display:flex;gap:8px;align-items:stretch">
+      <textarea id="activity-url" placeholder="Plak een TikTok URL of beschrijf de activiteit..." style="flex:1;margin:0"></textarea>
+      <button onclick="pasteFromClipboard()" title="Plak van klembord" style="background:var(--teal);color:white;border:none;border-radius:12px;padding:0 14px;font-size:18px;cursor:pointer;flex-shrink:0">📋</button>
+    </div>
     <select id="activity-day">
       <option value="">Wishlist (geen dag)</option>
     </select>
@@ -1033,18 +1036,42 @@ function setupRealtime() {
 }
 
 // ── Share intent ──────────────────────────────────────
-function captureShareIntent() {
-  const params = new URLSearchParams(window.location.search);
-  // iOS Shortcuts can pass url, text, or title
-  const sharedUrl = params.get('url') || params.get('text') || params.get('title') || '';
-  // Extract TikTok URL from anywhere in the string
-  const tikTokMatch = sharedUrl.match(/https?:\/\/[^\s]*tiktok\.com[^\s]*/i)
-    || sharedUrl.match(/https?:\/\/vm\.tiktok[^\s]*/i);
-  const cleanUrl = tikTokMatch ? tikTokMatch[0] : sharedUrl.trim();
+function extractTikTokUrl(str) {
+  const m = str.match(/https?:\/\/\S*tiktok\.com\S*/i) || str.match(/https?:\/\/vm\.tiktok\S*/i);
+  return m ? m[0].replace(/['")\]>]+$/, '') : null;
+}
 
-  if (cleanUrl) {
-    sessionStorage.setItem('pendingShare', cleanUrl);
-    window.history.replaceState({}, document.title, window.location.pathname);
+function captureShareIntent() {
+  // Try URL params (all possible param names iOS Shortcuts might use)
+  const params = new URLSearchParams(window.location.search);
+  const candidates = [
+    params.get('url'), params.get('text'), params.get('title'),
+    // Also try to find TikTok URL anywhere in the full query string
+    extractTikTokUrl(window.location.search)
+  ];
+  for (const c of candidates) {
+    if (!c) continue;
+    const url = extractTikTokUrl(c) || (c.startsWith('http') ? c.trim() : null);
+    if (url) {
+      sessionStorage.setItem('pendingShare', url);
+      window.history.replaceState({}, document.title, window.location.pathname);
+      return;
+    }
+  }
+}
+
+async function pasteFromClipboard() {
+  try {
+    const text = await navigator.clipboard.readText();
+    if (!text) return;
+    document.getElementById('activity-url').value = text;
+    const url = extractTikTokUrl(text);
+    if (url) {
+      document.getElementById('activity-url').value = url;
+      analyzeActivity();
+    }
+  } catch (_) {
+    toast('Klembord niet toegankelijk — plak handmatig');
   }
 }
 
