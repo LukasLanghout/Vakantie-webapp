@@ -1,14 +1,29 @@
-const CACHE = 'rhodos-v1';
+const CACHE = 'triply-v1';
 
 self.addEventListener('install', e => {
+  console.log('SW: Installing...');
   self.skipWaiting();
 });
 
 self.addEventListener('activate', e => {
-  e.waitUntil(clients.claim());
+  console.log('SW: Activating...');
+  e.waitUntil(caches.keys().then(keys =>
+    Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
+  ));
+  self.clients.claim();
 });
 
-// Pass through all fetches — no offline caching needed
 self.addEventListener('fetch', e => {
-  e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
+  if (e.request.method !== 'GET') return;
+
+  e.respondWith(
+    fetch(e.request)
+      .then(r => {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const clone = r.clone();
+        caches.open(CACHE).then(c => c.put(e.request, clone)).catch(() => {});
+        return r;
+      })
+      .catch(() => caches.match(e.request) || new Response('Offline'))
+  );
 });

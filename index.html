@@ -2,7 +2,13 @@
 <html lang="nl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Triply">
+<meta name="theme-color" content="#11314a">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%232f7fc7' width='192' height='192'/><text x='50%' y='50%' font-size='80' font-weight='800' font-family='Arial' fill='white' text-anchor='middle' dominant-baseline='central'>T</text></svg>">
 <title>Triply - Trip Planner</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Mulish:wght@400;600;700&display=swap" rel="stylesheet">
@@ -21,11 +27,18 @@ input, textarea { font-family: inherit; }
 a { color: inherit; text-decoration: none; }
 
 .phone-wrap { display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
-.phone { width: 393px; height: 852px; background: var(--bg); border-radius: 48px; overflow: hidden;
+.phone { width: 100%; max-width: 393px; height: 100vh; max-height: 852px; background: var(--bg); border-radius: 48px; overflow: hidden;
   position: relative; box-shadow: 0 30px 80px rgba(0,0,0,.3), inset 0 0 0 1px rgba(255,255,255,.2);
   display: flex; flex-direction: column; }
-@media (max-width: 430px) { .phone-wrap { padding: 0; align-items: flex-start; }
-  .phone { width: 100vw; height: 100dvh; border-radius: 0; } }
+@media (max-width: 500px) {
+  .phone-wrap { padding: 0; margin: 0; }
+  .phone { width: 100vw; height: 100dvh; border-radius: 0; max-width: 100vw; max-height: 100dvh; }
+  .header { padding: 12px 16px; }
+  .header-title { font-size: 18px; margin-bottom: 4px; }
+  .header-sub { font-size: 11px; }
+  .content { padding: 12px; }
+  .fab { width: 48px; height: 48px; font-size: 20px; bottom: 70px; right: 16px; }
+}
 
 /* Auth Screen */
 .container { display: flex; min-height: 100vh; justify-content: center; align-items: center; padding: 20px; }
@@ -586,7 +599,33 @@ function showModalMessage(msg, type) {
   document.getElementById('modal-message').innerHTML = `<div class="${type}">${msg}</div>`;
 }
 
+// Check for TikTok share intent
+async function handleShareIntent() {
+  const params = new URLSearchParams(window.location.search);
+  const sharedUrl = params.get('url');
+  const sharedTitle = params.get('title');
+  const sharedText = params.get('text');
+
+  if (sharedUrl && sharedUrl.includes('tiktok')) {
+    // Auto-fill the activity modal met TikTok URL
+    setTimeout(() => {
+      if (currentTrip) {
+        document.getElementById('activity-url').value = sharedUrl + (sharedTitle ? ' ' + sharedTitle : '');
+        showAddActivityModal();
+      }
+    }, 500);
+  }
+}
+
+// Register Service Worker
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').then(reg => {
+    console.log('SW registered:', reg);
+  }).catch(e => console.warn('SW registration failed:', e));
+}
+
 initSupabase();
+setTimeout(handleShareIntent, 1000);
 </script>
 </body>
 </html>
