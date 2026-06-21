@@ -215,7 +215,7 @@ var currentUser = null;
 var currentTrip = null;
 var tripDays = [];
 var isSignup = false;
-var groqKey = localStorage.getItem('groq_api_key') || '';
+var groqKey = '';
 
 async function initSupabase() {
   try {
@@ -226,11 +226,12 @@ async function initSupabase() {
         <div class="error" style="text-align:left;line-height:1.6">
           ⚠️ <b>App niet geconfigureerd.</b><br>
           Ga naar <b>vercel.com → vakantie-webapp → Settings</b> en voeg toe:<br><br>
-          SUPABASE_URL en SUPABASE_ANON_KEY
+          SUPABASE_URL, SUPABASE_ANON_KEY, en GROQ_API_KEY
         </div>`;
       return;
     }
     _sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey);
+    groqKey = cfg.groqApiKey || '';
     await checkAuth();
   } catch(e) {
     console.error('Init failed:', e);
@@ -395,6 +396,8 @@ async function selectTrip(tripId) {
   await loadPlanning();
   await loadActivities();
   await loadGroup();
+
+  setTimeout(processPendingShare, 500);
 }
 
 function switchTab(tab) {
@@ -498,12 +501,6 @@ function openMaps(area, lat, lng) {
 }
 
 function showAddActivityModal() {
-  if (!groqKey) {
-    const key = prompt('Voer je Groq API key in (van console.groq.com)');
-    if (!key) return;
-    groqKey = key;
-    localStorage.setItem('groq_api_key', key);
-  }
   document.getElementById('add-modal').classList.add('active');
 }
 
@@ -599,21 +596,36 @@ function showModalMessage(msg, type) {
   document.getElementById('modal-message').innerHTML = `<div class="${type}">${msg}</div>`;
 }
 
-// Check for TikTok share intent
-async function handleShareIntent() {
+// Capture share intent from URL
+function captureShareIntent() {
   const params = new URLSearchParams(window.location.search);
   const sharedUrl = params.get('url');
   const sharedTitle = params.get('title');
   const sharedText = params.get('text');
 
-  if (sharedUrl && sharedUrl.includes('tiktok')) {
-    // Auto-fill the activity modal met TikTok URL
-    setTimeout(() => {
-      if (currentTrip) {
-        document.getElementById('activity-url').value = sharedUrl + (sharedTitle ? ' ' + sharedTitle : '');
-        showAddActivityModal();
-      }
-    }, 500);
+  if (sharedUrl) {
+    sessionStorage.setItem('pendingShare', JSON.stringify({
+      url: sharedUrl,
+      title: sharedTitle,
+      text: sharedText
+    }));
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
+}
+
+// Process pending share after trip is selected
+function processPendingShare() {
+  const pendingShare = sessionStorage.getItem('pendingShare');
+  if (pendingShare && currentTrip) {
+    try {
+      const share = JSON.parse(pendingShare);
+      document.getElementById('activity-url').value = share.url + (share.title ? ' ' + share.title : '');
+      sessionStorage.removeItem('pendingShare');
+      showAddActivityModal();
+    } catch (e) {
+      console.error('Error processing share intent:', e);
+      sessionStorage.removeItem('pendingShare');
+    }
   }
 }
 
@@ -624,8 +636,8 @@ if ('serviceWorker' in navigator) {
   }).catch(e => console.warn('SW registration failed:', e));
 }
 
+captureShareIntent();
 initSupabase();
-setTimeout(handleShareIntent, 1000);
 </script>
 </body>
 </html>
