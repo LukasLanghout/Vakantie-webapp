@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="white"/>
+  <defs>
+    <linearGradient id="pinGrad" x1="30%" y1="0%" x2="70%" y2="100%">
+      <stop offset="0%" stop-color="#57c0d8"/>
+      <stop offset="100%" stop-color="#2f7fc7"/>
+    </linearGradient>
+  </defs>
+  <!-- Location pin -->
+  <path d="M256 52 C208 52 168 92 168 140 C168 188 210 240 256 295 C302 240 344 188 344 140 C344 92 304 52 256 52 Z" fill="url(#pinGrad)"/>
+  <circle cx="256" cy="136" r="38" fill="white"/>
+  <!-- Winding road -->
+  <path d="M172 308 Q175 325 200 328 Q240 332 256 318 Q272 304 310 308 Q335 312 342 330" stroke="#4ecdc4" stroke-width="14" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Triply text -->
+  <text x="256" y="450" text-anchor="middle" font-family="Arial Rounded MT Bold, Nunito, Arial, sans-serif" font-size="118" font-weight="800" fill="#11314a" letter-spacing="-2">Triply</text>
+  <!-- Teal dot on i -->
+  <circle cx="295" cy="368" r="10" fill="#4ecdc4"/>
+</svg>

@@ -9,7 +9,8 @@
 <meta name="apple-mobile-web-app-title" content="Triply">
 <meta name="theme-color" content="#11314a">
 <link rel="manifest" href="/manifest.json">
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%232f7fc7' width='192' height='192'/><text x='50%' y='50%' font-size='80' font-weight='800' font-family='Arial' fill='white' text-anchor='middle' dominant-baseline='central'>T</text></svg>">
+<link rel="icon" type="image/svg+xml" href="/icon.svg">
+<link rel="apple-touch-icon" href="/icon.svg">
 <title>Triply - Trip Planner</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Mulish:wght@400;600;700&display=swap" rel="stylesheet">
@@ -108,6 +109,39 @@ textarea:focus { outline: none; border-color: var(--blue); }
 </style>
 </head>
 <body>
+
+<!-- PIN Screen -->
+<div id="pin-screen" class="screen">
+  <div class="container">
+    <div class="card" style="text-align:center">
+      <img src="/icon.svg" style="width:64px;height:64px;margin:0 auto 12px;display:block">
+      <div class="title">Welkom terug</div>
+      <div class="subtitle" id="pin-subtitle">Voer je 4-cijferige PIN in</div>
+      <div id="pin-message"></div>
+      <div style="display:flex;gap:12px;justify-content:center;margin:20px 0">
+        <div id="pin-dot-0" style="width:16px;height:16px;border-radius:50%;background:var(--border);transition:background .2s"></div>
+        <div id="pin-dot-1" style="width:16px;height:16px;border-radius:50%;background:var(--border);transition:background .2s"></div>
+        <div id="pin-dot-2" style="width:16px;height:16px;border-radius:50%;background:var(--border);transition:background .2s"></div>
+        <div id="pin-dot-3" style="width:16px;height:16px;border-radius:50%;background:var(--border);transition:background .2s"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:240px;margin:0 auto">
+        <button class="btn btn-secondary" onclick="pinInput('1')" style="font-size:22px;padding:16px">1</button>
+        <button class="btn btn-secondary" onclick="pinInput('2')" style="font-size:22px;padding:16px">2</button>
+        <button class="btn btn-secondary" onclick="pinInput('3')" style="font-size:22px;padding:16px">3</button>
+        <button class="btn btn-secondary" onclick="pinInput('4')" style="font-size:22px;padding:16px">4</button>
+        <button class="btn btn-secondary" onclick="pinInput('5')" style="font-size:22px;padding:16px">5</button>
+        <button class="btn btn-secondary" onclick="pinInput('6')" style="font-size:22px;padding:16px">6</button>
+        <button class="btn btn-secondary" onclick="pinInput('7')" style="font-size:22px;padding:16px">7</button>
+        <button class="btn btn-secondary" onclick="pinInput('8')" style="font-size:22px;padding:16px">8</button>
+        <button class="btn btn-secondary" onclick="pinInput('9')" style="font-size:22px;padding:16px">9</button>
+        <button class="btn btn-secondary" onclick="pinClear()" style="font-size:16px;padding:16px">✕</button>
+        <button class="btn btn-secondary" onclick="pinInput('0')" style="font-size:22px;padding:16px">0</button>
+        <button class="btn btn-secondary" onclick="pinDelete()" style="font-size:18px;padding:16px">⌫</button>
+      </div>
+      <button class="btn btn-secondary" onclick="showAuthScreen(true)" style="margin-top:20px;font-size:12px;padding:10px">Inloggen met email</button>
+    </div>
+  </div>
+</div>
 
 <!-- Auth Screen -->
 <div id="auth-screen" class="screen active">
@@ -217,6 +251,64 @@ var currentTrip = null;
 var tripDays = [];
 var isSignup = false;
 var groqKey = '';
+var pinBuffer = '';
+var pinMode = 'check'; // 'check' or 'set'
+
+function pinInput(digit) {
+  if (pinBuffer.length >= 4) return;
+  pinBuffer += digit;
+  updatePinDots();
+  if (pinBuffer.length === 4) setTimeout(pinSubmit, 150);
+}
+
+function pinDelete() {
+  pinBuffer = pinBuffer.slice(0, -1);
+  updatePinDots();
+}
+
+function pinClear() {
+  pinBuffer = '';
+  updatePinDots();
+}
+
+function updatePinDots() {
+  for (let i = 0; i < 4; i++) {
+    document.getElementById('pin-dot-' + i).style.background =
+      i < pinBuffer.length ? 'var(--blue)' : 'var(--border)';
+  }
+}
+
+function pinSubmit() {
+  const stored = localStorage.getItem('triply_pin');
+  if (pinMode === 'set') {
+    localStorage.setItem('triply_pin', pinBuffer);
+    localStorage.setItem('triply_pin_set', Date.now());
+    pinBuffer = '';
+    updatePinDots();
+    showTripSelector();
+  } else {
+    if (pinBuffer === stored) {
+      pinBuffer = '';
+      updatePinDots();
+      showTripSelector();
+    } else {
+      document.getElementById('pin-message').innerHTML = '<div class="error">Verkeerde PIN, probeer opnieuw</div>';
+      pinBuffer = '';
+      updatePinDots();
+    }
+  }
+}
+
+function showPinScreen(mode) {
+  pinMode = mode || 'check';
+  pinBuffer = '';
+  updatePinDots();
+  document.getElementById('pin-message').innerHTML = '';
+  document.getElementById('pin-subtitle').textContent =
+    mode === 'set' ? 'Kies een 4-cijferige PIN' : 'Voer je 4-cijferige PIN in';
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('pin-screen').classList.add('active');
+}
 
 async function initSupabase() {
   try {
@@ -243,7 +335,11 @@ async function checkAuth() {
   if (!_sb) return;
   const { data: { session } } = await _sb.auth.getSession();
   currentUser = session?.user || null;
-  showAuthScreen();
+  if (currentUser && localStorage.getItem('triply_pin')) {
+    showPinScreen('check');
+  } else {
+    showAuthScreen();
+  }
 }
 
 async function handleAuth() {
@@ -270,7 +366,11 @@ async function handleAuth() {
       if (error) { showMessage(error.message, 'error'); return; }
       currentUser = data.user;
       showMessage('Welkom terug! 👋', 'success');
-      setTimeout(() => showTripSelector(), 500);
+      if (!localStorage.getItem('triply_pin')) {
+        setTimeout(() => showPinScreen('set'), 500);
+      } else {
+        setTimeout(() => showTripSelector(), 500);
+      }
     }
   } finally {
     document.getElementById('btn-submit').disabled = false;
@@ -284,12 +384,10 @@ async function handleLogout() {
   showAuthScreen();
 }
 
-function showAuthScreen() {
+function showAuthScreen(force) {
   isSignup = false;
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById('auth-screen').classList.add('active');
-  document.getElementById('trip-screen').classList.remove('active');
-  document.getElementById('create-trip-screen').classList.remove('active');
-  document.getElementById('planner-screen').classList.remove('active');
   document.getElementById('auth-email').value = '';
   document.getElementById('auth-password').value = '';
   document.getElementById('auth-message').innerHTML = '';
@@ -523,18 +621,18 @@ async function analyzeActivity() {
 
   try {
     // Simplified AI call — real impl would fetch TikTok metadata first
-    const prompt = `Analyseer deze vakantie-activiteit en extraheer:
-URL: ${url}
-Bestemming: ${currentTrip.destination}
+    const prompt = `Je bent een reis-assistent. Analyseer deze TikTok video URL over een vakantieactiviteit in ${currentTrip.destination}.
 
-Geef ALLEEN geldige JSON terug (geen markdown):
+URL: ${url}
+
+Geef ALLEEN geldige JSON terug, geen uitleg, geen markdown, geen code blocks. Vul de velden in op basis van wat je weet over deze activiteit:
 {
-  "name": "Activiteitsnaam (max 30 chars)",
-  "category": "Strand|Cultuur|Natuur|Eten & drinken|Avontuur|Uitzicht|Dagtrip",
-  "area": "Buurt/locatie",
-  "priceVal": 0,
-  "free": true,
-  "description": "1-2 zin Nederlands"
+  "name": "<korte naam van de activiteit, max 30 tekens>",
+  "category": "<kies één van: Strand, Cultuur, Natuur, Eten & drinken, Avontuur, Uitzicht, Dagtrip>",
+  "area": "<buurt of locatie in ${currentTrip.destination}>",
+  "priceVal": <geschatte prijs in euro als getal, 0 als gratis>,
+  "free": <true als gratis, anders false>,
+  "description": "<1-2 zinnen beschrijving in het Nederlands>"
 }`;
 
     const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
