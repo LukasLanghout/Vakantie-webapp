@@ -1,3 +1,13 @@
 {
-  "outputDirectory": "."
+  "outputDirectory": ".",
+  "routes": [
+    {
+      "src": "/Triply.shortcut",
+      "dest": "/public/Triply.shortcut",
+      "headers": {
+        "Content-Type": "application/octet-stream",
+        "Content-Disposition": "attachment; filename=\"Triply.shortcut\""
+      }
+    }
+  ]
 }
