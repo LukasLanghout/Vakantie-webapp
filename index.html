@@ -734,6 +734,7 @@ function switchTab(name, el) {
   const tab = document.getElementById(name + '-tab');
   if (tab) tab.classList.add('active');
   if (name === 'map') initMap();
+  if (name === 'group') loadGroup();
 }
 
 // ── Planning tab ──────────────────────────────────────
@@ -1085,7 +1086,7 @@ function openMaps(area, lat, lng) {
 // ── Realtime ──────────────────────────────────────────
 function setupRealtime() {
   if (realtimeChannel) { _sb.removeChannel(realtimeChannel); }
-  realtimeChannel = _sb.channel('activities-' + currentTrip.id)
+  realtimeChannel = _sb.channel('trip-' + currentTrip.id)
     .on('postgres_changes', {
       event: '*', schema: 'public', table: 'triply_activities',
       filter: `trip_id=eq.${currentTrip.id}`
@@ -1096,6 +1097,12 @@ function setupRealtime() {
       loadActivities();
       loadPlanning();
       updateMapMarkers();
+    })
+    .on('postgres_changes', {
+      event: 'INSERT', schema: 'public', table: 'triply_group_members'
+    }, () => {
+      loadGroup();
+      toast('👤 Nieuw groepslid toegetreden!');
     })
     .subscribe();
 }
