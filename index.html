@@ -808,6 +808,15 @@ async function fetchTikTokMeta(url) {
   return null;
 }
 
+async function transcribeTikTok(url) {
+  try {
+    const r = await fetch(`/api/transcribe?url=${encodeURIComponent(url)}`);
+    const j = await r.json();
+    if (j.ok && j.transcript) return j.transcript;
+  } catch (_) {}
+  return null;
+}
+
 function showAddActivityModal() {
   document.getElementById('add-modal').classList.add('active');
 }
@@ -835,7 +844,15 @@ async function analyzeActivity() {
     if (isTikTok) {
       document.getElementById('add-btn').textContent = '📱 TikTok ophalen...';
       const meta = await fetchTikTokMeta(input);
-      if (meta?.title) context = `Video titel: "${meta.title}"\nURL: ${input}`;
+      const parts = [];
+      if (meta?.title) parts.push(`Video ondertitel: "${meta.title}"`);
+      if (meta?.author) parts.push(`Creator: @${meta.author}`);
+
+      document.getElementById('add-btn').textContent = '🎙️ Audio transcriberen...';
+      const transcript = await transcribeTikTok(input);
+      if (transcript) parts.push(`Gesproken tekst in video:\n"${transcript}"`);
+
+      context = parts.length > 0 ? parts.join('\n\n') : input;
     }
 
     document.getElementById('add-btn').textContent = '🤖 AI analyseert...';
