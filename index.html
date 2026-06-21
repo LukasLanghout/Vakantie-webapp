@@ -3,629 +3,2092 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Triply ✈️</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#11314a">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Triply">
-<meta name="theme-color" content="#11314a">
-<link rel="manifest" href="/manifest.json">
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%232f7fc7' width='192' height='192'/><text x='50%' y='50%' font-size='80' font-weight='800' font-family='Arial' fill='white' text-anchor='middle' dominant-baseline='central'>T</text></svg>">
-<title>Triply - Trip Planner</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Mulish:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Mulish:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 <style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
+/* ─── Reset & Base ─────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
   --blue: #2f7fc7; --navy: #11314a; --teal: #57c0d8; --green: #3aa08a;
   --orange: #ef8f4c; --bg: #fbfafa; --border: #eef3f6; --text: #708496;
   --dark: #1a2d3d; --white: #fff; --red: #e05c5c;
+  --radius: 20px; --shadow: 0 8px 32px rgba(17,49,74,.13);
 }
 html, body { height: 100%; background: #e8eef3; font-family: 'Mulish', sans-serif; }
 button { font-family: inherit; cursor: pointer; border: none; background: none; }
-input, textarea { font-family: inherit; }
+input, textarea, select { font-family: inherit; }
 a { color: inherit; text-decoration: none; }
 
-.phone-wrap { display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
-.phone { width: 100%; max-width: 393px; height: 100vh; max-height: 852px; background: var(--bg); border-radius: 48px; overflow: hidden;
-  position: relative; box-shadow: 0 30px 80px rgba(0,0,0,.3), inset 0 0 0 1px rgba(255,255,255,.2);
-  display: flex; flex-direction: column; }
-@media (max-width: 500px) {
-  .phone-wrap { padding: 0; margin: 0; }
-  .phone { width: 100vw; height: 100dvh; border-radius: 0; max-width: 100vw; max-height: 100dvh; }
-  .header { padding: 12px 16px; }
-  .header-title { font-size: 18px; margin-bottom: 4px; }
-  .header-sub { font-size: 11px; }
-  .content { padding: 12px; }
-  .fab { width: 48px; height: 48px; font-size: 20px; bottom: 70px; right: 16px; }
+/* ─── Phone Container ───────────────────────────────────────── */
+.phone-wrap {
+  display: flex; justify-content: center; align-items: center;
+  min-height: 100vh; padding: 20px;
+}
+.phone {
+  width: 393px; height: 852px; background: var(--bg);
+  border-radius: 48px; overflow: hidden; position: relative;
+  box-shadow: 0 30px 80px rgba(0,0,0,.3), inset 0 0 0 1px rgba(255,255,255,.2);
+  display: flex; flex-direction: column;
+}
+@media (max-width: 430px) {
+  .phone-wrap { padding: 0; align-items: flex-start; }
+  .phone { width: 100vw; height: 100dvh; border-radius: 0; }
 }
 
-/* Auth Screen */
-.container { display: flex; min-height: 100vh; justify-content: center; align-items: center; padding: 20px; }
-.screen { display: none; width: 100%; max-width: 400px; }
-.screen.active { display: block; }
-.card { background: white; border-radius: 20px; padding: 30px; box-shadow: 0 8px 32px rgba(0,0,0,0.1); }
-.title { font-family: 'Baloo 2'; font-size: 28px; font-weight: 800; color: var(--navy); margin-bottom: 20px; }
-.subtitle { font-size: 14px; color: var(--text); margin-bottom: 20px; }
-input { width: 100%; padding: 12px; border: 2px solid var(--border); border-radius: 10px; margin-bottom: 12px; font-size: 14px; }
-input:focus { outline: none; border-color: var(--blue); }
-textarea { width: 100%; padding: 12px; border: 2px solid var(--border); border-radius: 10px; margin-bottom: 12px; font-size: 13px; min-height: 80px; }
-textarea:focus { outline: none; border-color: var(--blue); }
-.btn { width: 100%; padding: 14px; border-radius: 10px; font-weight: 700; font-size: 15px; cursor: pointer; transition: opacity .2s; }
-.btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.btn:active:not(:disabled) { opacity: 0.8; }
+/* ─── Screens ───────────────────────────────────────────────── */
+.screen { position: absolute; inset: 0; display: none; flex-direction: column; overflow: hidden; background: var(--bg); }
+.screen.active { display: flex; }
+
+/* ─── Status Bar ────────────────────────────────────────────── */
+.status-bar {
+  height: 44px; background: var(--navy); display: flex;
+  align-items: center; justify-content: space-between;
+  padding: 0 28px; flex-shrink: 0; position: relative; z-index: 100;
+}
+.status-bar .time { font-size: 15px; font-weight: 700; color: var(--white); }
+.status-icons { display: flex; gap: 6px; align-items: center; }
+.status-icons svg { fill: white; }
+
+/* ─── App Header ────────────────────────────────────────────── */
+.app-header { background: var(--navy); padding: 0 20px 16px; flex-shrink: 0; }
+.header-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.app-title { font-family: 'Baloo 2', sans-serif; font-size: 22px; font-weight: 800; color: var(--white); }
+.header-sub { font-size: 12px; color: rgba(255,255,255,.6); }
+.header-badges { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; display: flex; align-items: center; gap: 4px; }
+.badge-hotel { background: rgba(87,192,216,.2); color: var(--teal); border: 1px solid rgba(87,192,216,.3); }
+.badge-dates { background: rgba(239,143,76,.2); color: #f0a04b; border: 1px solid rgba(239,143,76,.3); }
+.badge-budget { background: rgba(58,160,138,.2); color: var(--green); border: 1px solid rgba(58,160,138,.3); }
+.icon-btn { background: rgba(255,255,255,.1); border-radius: 10px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.avatar-btn { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, var(--teal), var(--blue)); color: white; font-family: 'Baloo 2', sans-serif; font-weight: 700; font-size: 15px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+/* ─── Tabs ──────────────────────────────────────────────────── */
+.tabs { background: var(--navy); display: flex; border-top: 1px solid rgba(255,255,255,.08); flex-shrink: 0; }
+.tab { flex: 1; padding: 10px 4px 8px; display: flex; flex-direction: column; align-items: center; gap: 3px; color: rgba(255,255,255,.4); font-size: 10px; font-weight: 700; letter-spacing: .3px; transition: color .2s; text-transform: uppercase; }
+.tab.active { color: var(--teal); }
+.tab svg { width: 20px; height: 20px; }
+
+/* ─── Tab Content ───────────────────────────────────────────── */
+.content { flex: 1; overflow: hidden; position: relative; }
+.tab-panel { position: absolute; inset: 0; overflow-y: auto; display: none; }
+#panel-kaart { overflow: hidden; }
+.tab-panel.active { display: block; }
+.tab-panel::-webkit-scrollbar { width: 3px; }
+.tab-panel::-webkit-scrollbar-track { background: transparent; }
+.tab-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+
+/* ─── Sections / Cards ──────────────────────────────────────── */
+.section { padding: 16px 16px 4px; }
+.section-title { font-family: 'Baloo 2', sans-serif; font-size: 15px; font-weight: 700; color: var(--navy); margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; }
+.section-count { font-size: 11px; font-weight: 700; background: var(--blue); color: white; padding: 2px 8px; border-radius: 10px; }
+
+.activity-card { background: var(--white); border-radius: 16px; margin-bottom: 10px; overflow: hidden; box-shadow: 0 2px 12px rgba(17,49,74,.07); display: flex; cursor: pointer; transition: transform .15s, box-shadow .15s; border: 1px solid var(--border); }
+.activity-card:active { transform: scale(.98); box-shadow: 0 1px 6px rgba(17,49,74,.05); }
+.card-accent { width: 6px; flex-shrink: 0; }
+.card-body { flex: 1; padding: 12px 12px 12px 10px; min-width: 0; }
+.card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.card-name { font-family: 'Baloo 2', sans-serif; font-size: 14px; font-weight: 700; color: var(--navy); line-height: 1.2; flex: 1; min-width: 0; }
+.card-price { font-size: 12px; font-weight: 700; color: var(--green); white-space: nowrap; background: rgba(58,160,138,.1); padding: 2px 7px; border-radius: 8px; }
+.card-price.free { color: var(--teal); background: rgba(87,192,216,.1); }
+.card-meta { display: flex; gap: 8px; margin-top: 5px; flex-wrap: wrap; }
+.card-pill { font-size: 10px; color: var(--text); background: var(--border); padding: 2px 7px; border-radius: 6px; display: flex; align-items: center; gap: 3px; }
+.card-day { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 6px; background: rgba(47,127,199,.12); color: var(--blue); }
+.card-wishlist { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 6px; background: rgba(239,143,76,.1); color: var(--orange); }
+.card-by { font-size: 10px; color: var(--text); margin-top: 4px; opacity: .8; }
+
+.empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 20px; gap: 12px; text-align: center; }
+.empty-state .empty-icon { font-size: 48px; }
+.empty-state h3 { font-family: 'Baloo 2', sans-serif; font-size: 18px; font-weight: 700; color: var(--navy); }
+.empty-state p { font-size: 13px; color: var(--text); max-width: 240px; line-height: 1.5; }
+
+.budget-card { background: linear-gradient(135deg, var(--navy) 0%, #1d4a6e 100%); border-radius: 16px; padding: 16px; margin: 0 16px 8px; color: white; }
+.budget-title { font-size: 11px; font-weight: 700; opacity: .6; text-transform: uppercase; letter-spacing: .5px; }
+.budget-total { font-family: 'Baloo 2', sans-serif; font-size: 28px; font-weight: 800; margin: 4px 0; }
+.budget-sub { font-size: 11px; opacity: .6; }
+.budget-breakdown { display: flex; gap: 12px; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,.1); }
+.budget-item { flex: 1; }
+.budget-item-label { font-size: 10px; opacity: .5; }
+.budget-item-val { font-size: 14px; font-weight: 700; }
+
+/* ─── Planning Tab ──────────────────────────────────────────── */
+.day-section { padding: 8px 16px; }
+.day-header { display: flex; align-items: center; gap: 10px; padding: 10px 0 8px; border-bottom: 1px solid var(--border); margin-bottom: 8px; }
+.day-num { width: 36px; height: 36px; border-radius: 12px; background: linear-gradient(135deg, var(--blue), var(--teal)); display: flex; align-items: center; justify-content: center; font-family: 'Baloo 2', sans-serif; font-size: 16px; font-weight: 800; color: white; flex-shrink: 0; }
+.day-info { flex: 1; }
+.day-title { font-family: 'Baloo 2', sans-serif; font-size: 14px; font-weight: 700; color: var(--navy); }
+.day-date { font-size: 11px; color: var(--text); }
+.day-total { font-size: 12px; font-weight: 700; color: var(--green); }
+.day-card { background: var(--white); border-radius: 12px; padding: 10px 12px; margin-bottom: 6px; display: flex; align-items: center; gap: 10px; cursor: pointer; border: 1px solid var(--border); transition: transform .15s; box-shadow: 0 1px 6px rgba(17,49,74,.04); }
+.day-card:active { transform: scale(.98); }
+.day-card-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.day-card-body { flex: 1; min-width: 0; }
+.day-card-name { font-family: 'Baloo 2', sans-serif; font-size: 13px; font-weight: 700; color: var(--navy); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.day-card-sub { font-size: 10px; color: var(--text); margin-top: 1px; }
+.day-card-price { font-size: 12px; font-weight: 700; color: var(--green); flex-shrink: 0; }
+.day-card-time { font-size: 10px; font-weight: 700; color: var(--blue); background: rgba(47,127,199,.1); padding: 2px 6px; border-radius: 6px; flex-shrink: 0; }
+.day-empty { font-size: 12px; color: var(--text); text-align: center; padding: 12px; border: 1.5px dashed var(--border); border-radius: 12px; margin-bottom: 6px; }
+.wishlist-section { padding: 8px 16px 80px; }
+
+/* ─── Map Tab ───────────────────────────────────────────────── */
+#panel-kaart { background: #e8eef3; }
+#map { width: 100%; height: 100%; }
+.map-loading { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; z-index: 10; background: rgba(251,250,250,.9); backdrop-filter: blur(4px); }
+.map-loading .spinner { width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--blue); border-radius: 50%; animation: spin .8s linear infinite; }
+.map-loading p { font-size: 13px; color: var(--text); }
+.map-legend { position: absolute; bottom: 16px; right: 12px; z-index: 400; background: white; border-radius: 12px; padding: 10px 12px; box-shadow: var(--shadow); font-size: 11px; color: var(--navy); max-height: 200px; overflow-y: auto; }
+.legend-item { display: flex; align-items: center; gap: 6px; padding: 2px 0; }
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+/* ─── FAB ───────────────────────────────────────────────────── */
+.fab { position: absolute; bottom: 76px; right: 20px; width: 52px; height: 52px; border-radius: 16px; background: linear-gradient(135deg, var(--blue), var(--teal)); box-shadow: 0 4px 20px rgba(47,127,199,.4); display: flex; align-items: center; justify-content: center; z-index: 50; cursor: pointer; transition: transform .2s, box-shadow .2s; border: none; }
+.fab:active { transform: scale(.92); box-shadow: 0 2px 10px rgba(47,127,199,.3); }
+.fab svg { width: 24px; height: 24px; fill: white; }
+.fab-home { bottom: 24px; }
+
+/* ─── Bottom Sheet ──────────────────────────────────────────── */
+.sheet-overlay { position: absolute; inset: 0; background: rgba(17,49,74,.5); z-index: 200; display: none; backdrop-filter: blur(3px); }
+.sheet-overlay.open { display: flex; align-items: flex-end; }
+.sheet { background: var(--white); border-radius: 28px 28px 0 0; width: 100%; max-height: 88%; overflow-y: auto; padding-bottom: 24px; animation: slideUp .3s cubic-bezier(.2,.8,.3,1); }
+.sheet::-webkit-scrollbar { width: 3px; }
+.sheet::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+@keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.sheet-handle { width: 40px; height: 4px; background: #d0d8e0; border-radius: 2px; margin: 12px auto 4px; }
+.sheet-header { padding: 8px 20px 16px; display: flex; align-items: center; justify-content: space-between; }
+.sheet-title { font-family: 'Baloo 2', sans-serif; font-size: 18px; font-weight: 800; color: var(--navy); }
+.sheet-close { width: 32px; height: 32px; border-radius: 10px; background: var(--border); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.sheet-body { padding: 0 20px; }
+
+/* ─── Add Sheet ─────────────────────────────────────────────── */
+.url-textarea { width: 100%; padding: 12px 16px; border-radius: 14px; border: 2px solid var(--border); font-size: 13px; color: var(--navy); background: #f7f9fb; transition: border-color .2s; outline: none; resize: none; line-height: 1.5; font-family: inherit; min-height: 90px; }
+.url-textarea:focus { border-color: var(--blue); }
+.url-paste-btn { background: var(--blue); color: white; border-radius: 8px; font-size: 11px; font-weight: 700; padding: 5px 10px; cursor: pointer; }
+.url-paste-btn:active { opacity: .8; }
+.analyze-btn { width: 100%; padding: 15px; border-radius: 14px; background: linear-gradient(135deg, var(--blue), var(--teal)); color: white; font-size: 15px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px; transition: opacity .2s, transform .2s; }
+.analyze-btn:active { transform: scale(.98); }
+.analyze-btn:disabled { opacity: .5; }
+.api-key-hint { font-size: 11px; color: var(--text); text-align: center; margin-top: 8px; line-height: 1.5; }
+.api-key-hint a { color: var(--blue); font-weight: 700; cursor: pointer; }
+
+.parsing-state { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 24px 0; }
+.parsing-state .spinner { width: 40px; height: 40px; border: 3px solid var(--border); border-top-color: var(--blue); border-radius: 50%; animation: spin .8s linear infinite; }
+.parsing-steps { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+.parsing-step { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text); padding: 8px 12px; border-radius: 10px; background: var(--border); }
+.parsing-step.active { background: rgba(47,127,199,.1); color: var(--blue); font-weight: 600; }
+.parsing-step.done { background: rgba(58,160,138,.1); color: var(--green); font-weight: 600; }
+.step-icon { font-size: 16px; width: 20px; text-align: center; }
+
+.result-card { background: linear-gradient(135deg, var(--navy), #1d4a6e); border-radius: 16px; padding: 16px; margin-bottom: 16px; color: white; }
+.result-cat { font-size: 10px; font-weight: 700; opacity: .6; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+.result-name { font-family: 'Baloo 2', sans-serif; font-size: 20px; font-weight: 800; line-height: 1.2; margin-bottom: 8px; }
+.result-price { display: inline-block; font-size: 13px; font-weight: 700; padding: 3px 10px; border-radius: 10px; background: rgba(58,160,138,.3); }
+.result-blurb { font-size: 12px; opacity: .7; margin-top: 8px; line-height: 1.5; }
+.result-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+.result-info-item { background: var(--border); border-radius: 12px; padding: 10px; }
+.result-info-label { font-size: 10px; color: var(--text); font-weight: 700; text-transform: uppercase; letter-spacing: .3px; }
+.result-info-val { font-size: 13px; color: var(--navy); font-weight: 600; margin-top: 2px; }
+
+.day-selector-label { font-size: 12px; font-weight: 700; color: var(--navy); margin-bottom: 8px; }
+.day-selector { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.day-btn { padding: 6px 12px; border-radius: 10px; font-size: 12px; font-weight: 700; background: var(--border); color: var(--text); transition: all .15s; border: 2px solid transparent; text-align: center; }
+.day-btn:active { transform: scale(.95); }
+.day-btn.selected { background: rgba(47,127,199,.15); color: var(--blue); border-color: var(--blue); }
+.day-btn.wishlist { background: rgba(239,143,76,.1); color: var(--orange); }
+.day-btn.wishlist.selected { border-color: var(--orange); }
+
+.time-input-row { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+.time-input-label { font-size: 12px; font-weight: 700; color: var(--navy); }
+.time-input { padding: 6px 10px; border-radius: 10px; border: 2px solid var(--border); font-size: 13px; font-weight: 700; color: var(--navy); outline: none; background: var(--border); transition: border-color .2s; }
+.time-input:focus { border-color: var(--blue); background: white; }
+
+.save-btn { width: 100%; padding: 15px; border-radius: 14px; background: linear-gradient(135deg, var(--green), #4dc8aa); color: white; font-size: 15px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px; transition: transform .2s; }
+.save-btn:active { transform: scale(.98); }
+
+.error-state { text-align: center; padding: 20px; border-radius: 14px; background: rgba(224,92,92,.08); border: 1px solid rgba(224,92,92,.2); margin-bottom: 16px; }
+.error-icon { font-size: 32px; margin-bottom: 8px; }
+.error-title { font-size: 15px; font-weight: 700; color: var(--red); margin-bottom: 4px; }
+.error-msg { font-size: 13px; color: var(--text); }
+
+/* ─── Form fields (auth/setup/create) ───────────────────────── */
+.field { margin-bottom: 14px; }
+.field label { display: block; font-size: 12px; font-weight: 700; color: var(--navy); margin-bottom: 6px; }
+.input { width: 100%; padding: 13px 14px; border-radius: 12px; border: 2px solid var(--border); font-size: 14px; color: var(--navy); background: #f7f9fb; outline: none; transition: border-color .2s; }
+.input:focus { border-color: var(--blue); }
+.input.mono { font-family: 'Courier New', monospace; font-size: 12px; }
+textarea.input { resize: vertical; min-height: 120px; line-height: 1.5; }
+.btn-block { width: 100%; padding: 14px; border-radius: 14px; font-size: 15px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px; transition: transform .15s, opacity .15s; }
+.btn-block:active { transform: scale(.98); }
+.btn-fill { background: linear-gradient(135deg, var(--blue), var(--teal)); color: white; }
+.btn-green { background: linear-gradient(135deg, var(--green), #4dc8aa); color: white; }
+.btn-google { background: white; border: 2px solid var(--border); color: var(--navy); }
+.btn-ghost { background: var(--border); color: var(--navy); }
+.form-error { font-size: 13px; color: var(--red); text-align: center; margin-top: 10px; min-height: 18px; line-height: 1.4; }
+.divider-or { display: flex; align-items: center; gap: 10px; margin: 16px 0; color: var(--text); font-size: 12px; }
+.divider-or::before, .divider-or::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+/* ─── Auth / Setup centered screens ─────────────────────────── */
+.center-screen { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
+.center-inner { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 24px 24px 40px; }
+.brand { text-align: center; margin-bottom: 24px; }
+.brand-logo { font-family: 'Baloo 2', sans-serif; font-size: 40px; font-weight: 800; color: var(--navy); }
+.brand-tag { font-size: 14px; color: var(--text); margin-top: 2px; }
+.auth-tabs { display: flex; background: var(--border); border-radius: 14px; padding: 4px; margin-bottom: 20px; }
+.auth-tab { flex: 1; padding: 10px; border-radius: 10px; font-size: 14px; font-weight: 700; color: var(--text); transition: all .15s; }
+.auth-tab.active { background: white; color: var(--navy); box-shadow: 0 2px 8px rgba(17,49,74,.08); }
+
+/* ─── Home / Trip cards ─────────────────────────────────────── */
+.trips-grid { padding: 16px 16px 90px; display: flex; flex-direction: column; gap: 12px; }
+.trip-card { background: var(--white); border-radius: 18px; padding: 16px; box-shadow: 0 2px 12px rgba(17,49,74,.07); border: 1px solid var(--border); cursor: pointer; display: flex; gap: 14px; align-items: center; transition: transform .15s; }
+.trip-card:active { transform: scale(.98); }
+.trip-emoji { width: 52px; height: 52px; border-radius: 16px; background: linear-gradient(135deg, var(--teal), var(--blue)); display: flex; align-items: center; justify-content: center; font-size: 26px; flex-shrink: 0; }
+.trip-card-body { flex: 1; min-width: 0; }
+.trip-card-name { font-family: 'Baloo 2', sans-serif; font-size: 16px; font-weight: 700; color: var(--navy); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.trip-card-dest { font-size: 12px; color: var(--text); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.trip-card-meta { display: flex; gap: 10px; margin-top: 6px; }
+.trip-card-meta span { font-size: 11px; color: var(--text); background: var(--border); padding: 2px 8px; border-radius: 8px; }
+
+/* ─── Sheet option buttons ──────────────────────────────────── */
+.sheet-option { display: flex; align-items: center; gap: 14px; padding: 16px; border-radius: 16px; border: 2px solid var(--border); margin-bottom: 12px; cursor: pointer; transition: border-color .15s, background .15s; }
+.sheet-option:active { background: var(--border); }
+.sheet-option-icon { width: 44px; height: 44px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
+.sheet-option-title { font-family: 'Baloo 2', sans-serif; font-size: 15px; font-weight: 700; color: var(--navy); }
+.sheet-option-sub { font-size: 12px; color: var(--text); margin-top: 1px; }
+
+/* ─── Settings / Members ────────────────────────────────────── */
+.invite-box { background: linear-gradient(135deg, var(--navy), #1d4a6e); border-radius: 16px; padding: 16px; color: white; margin-bottom: 16px; text-align: center; }
+.invite-label { font-size: 11px; opacity: .6; text-transform: uppercase; letter-spacing: .5px; }
+.invite-code { font-family: 'Baloo 2', sans-serif; font-size: 32px; font-weight: 800; letter-spacing: 4px; margin: 6px 0 10px; }
+.invite-copy { background: rgba(255,255,255,.15); color: white; border-radius: 10px; padding: 8px 16px; font-size: 13px; font-weight: 700; }
+.member-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.member-av { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, var(--teal), var(--blue)); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-family: 'Baloo 2', sans-serif; flex-shrink: 0; }
+.member-name { font-size: 14px; font-weight: 700; color: var(--navy); }
+.member-role { font-size: 11px; color: var(--text); }
+.role-badge { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 8px; margin-left: auto; }
+.role-owner { background: rgba(239,143,76,.15); color: var(--orange); }
+.role-member { background: var(--border); color: var(--text); }
+.info-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+.info-row .lbl { color: var(--text); }
+.info-row .val { color: var(--navy); font-weight: 700; }
+
+/* ─── Detail Sheet ──────────────────────────────────────────── */
+.detail-header { padding: 0 20px 16px; position: relative; }
+.detail-cat-badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 8px; margin-bottom: 8px; text-transform: uppercase; letter-spacing: .3px; }
+.detail-name { font-family: 'Baloo 2', sans-serif; font-size: 22px; font-weight: 800; color: var(--navy); line-height: 1.15; margin-bottom: 6px; }
+.detail-blurb { font-size: 13px; color: var(--text); line-height: 1.6; }
+.detail-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 16px 20px; }
+.detail-info-card { background: var(--border); border-radius: 14px; padding: 12px; }
+.detail-info-icon { font-size: 18px; margin-bottom: 4px; }
+.detail-info-label { font-size: 10px; color: var(--text); font-weight: 700; text-transform: uppercase; letter-spacing: .3px; }
+.detail-info-val { font-size: 13px; color: var(--navy); font-weight: 600; margin-top: 2px; line-height: 1.3; }
+.detail-actions { padding: 0 20px; display: flex; flex-direction: column; gap: 8px; }
+.detail-action-btn { width: 100%; padding: 13px; border-radius: 14px; font-size: 14px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px; transition: transform .15s, opacity .15s; }
+.detail-action-btn:active { transform: scale(.98); opacity: .85; }
 .btn-primary { background: linear-gradient(135deg, var(--blue), var(--teal)); color: white; }
-.btn-secondary { background: var(--border); color: var(--text); }
-.error { color: var(--red); font-size: 12px; margin-bottom: 12px; padding: 10px; background: rgba(224,92,92,.08); border-radius: 8px; }
-.success { color: var(--green); font-size: 12px; margin-bottom: 12px; padding: 10px; background: rgba(58,160,138,.08); border-radius: 8px; }
-.divider { text-align: center; color: var(--text); margin: 15px 0; font-size: 12px; }
-.spinner { display: inline-block; width: 30px; height: 30px; border: 3px solid var(--border); border-top-color: var(--blue); border-radius: 50%; animation: spin 1s linear infinite; }
+.btn-outline { background: transparent; border: 2px solid var(--border); color: var(--navy); }
+.btn-danger { background: rgba(224,92,92,.08); border: 2px solid rgba(224,92,92,.15); color: var(--red); }
+.btn-orange { background: linear-gradient(135deg, var(--orange), #f0a04b); color: white; }
+.detail-day-section { padding: 16px 20px; border-top: 1px solid var(--border); }
+.detail-day-label { font-size: 12px; font-weight: 700; color: var(--navy); margin-bottom: 8px; }
+
+/* ─── Toast ─────────────────────────────────────────────────── */
+.toast { position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--navy); color: white; padding: 10px 20px; border-radius: 20px; font-size: 13px; font-weight: 600; white-space: nowrap; z-index: 300; opacity: 0; transition: opacity .25s, transform .25s; pointer-events: none; box-shadow: 0 4px 20px rgba(17,49,74,.3); max-width: 90%; }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* Planner UI */
-.header { background: var(--navy); color: white; padding: 16px 20px; flex-shrink: 0; }
-.header-title { font-family: 'Baloo 2'; font-size: 20px; font-weight: 800; margin-bottom: 8px; }
-.header-sub { font-size: 12px; opacity: 0.8; }
-.tabs { display: flex; background: var(--navy); border-top: 1px solid rgba(255,255,255,.1); flex-shrink: 0; }
-.tab { flex: 1; padding: 12px; text-align: center; color: rgba(255,255,255,.5); font-size: 12px; font-weight: 700; cursor: pointer; transition: color .2s; border-bottom: 2px solid transparent; }
-.tab.active { color: var(--teal); border-bottom-color: var(--teal); }
-.content { flex: 1; overflow-y: auto; padding: 16px; }
-.section-title { font-family: 'Baloo 2'; font-size: 16px; font-weight: 700; color: var(--navy); margin-bottom: 12px; margin-top: 16px; }
-.section-title:first-child { margin-top: 0; }
+/* ─── Map markers / popups ──────────────────────────────────── */
+.leaflet-popup-content-wrapper { border-radius: 14px !important; box-shadow: 0 4px 20px rgba(17,49,74,.15) !important; }
+.map-popup-title { font-family: 'Baloo 2', sans-serif; font-size: 14px; font-weight: 700; color: var(--navy); }
+.map-popup-sub { font-size: 11px; color: var(--text); margin-top: 2px; }
+.map-popup-btn { margin-top: 6px; background: var(--blue); color: white; border: none; border-radius: 8px; padding: 4px 10px; font-size: 11px; font-weight: 700; cursor: pointer; font-family: 'Mulish', sans-serif; }
 
-.day-card { background: white; border-radius: 14px; padding: 12px; border: 1.5px solid var(--border); margin-bottom: 10px; }
-.day-header { font-weight: 700; color: var(--navy); margin-bottom: 8px; }
-.day-date { font-size: 12px; color: var(--text); margin-bottom: 8px; }
-.activity-item { background: var(--border); border-radius: 10px; padding: 8px; margin-bottom: 6px; font-size: 12px; color: var(--navy); }
+/* ─── Batch UI ──────────────────────────────────────────────── */
+.batch-progress-wrap { margin-bottom: 14px; }
+.batch-progress-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.batch-progress-label { font-size: 12px; font-weight: 700; color: var(--navy); }
+.batch-progress-count { font-size: 11px; color: var(--text); }
+.batch-progress-bar { height: 6px; background: var(--border); border-radius: 10px; overflow: hidden; }
+.batch-progress-fill { height: 100%; border-radius: 10px; background: linear-gradient(90deg, var(--blue), var(--teal)); transition: width .4s ease; }
+.batch-video-list { display: flex; flex-direction: column; gap: 4px; max-height: 180px; overflow-y: auto; margin-bottom: 14px; padding-right: 2px; }
+.batch-video-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 10px; background: var(--border); font-size: 12px; color: var(--text); }
+.batch-video-item.active { background: rgba(47,127,199,.1); color: var(--blue); }
+.batch-video-item.done { background: rgba(58,160,138,.08); color: var(--green); }
+.batch-video-item.skipped { background: rgba(224,92,92,.06); color: #b05050; }
+.batch-video-icon { font-size: 14px; width: 18px; text-align: center; flex-shrink: 0; }
+.batch-video-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.batch-results-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.batch-select-all { font-size: 12px; font-weight: 700; color: var(--blue); cursor: pointer; padding: 4px 8px; border-radius: 8px; background: rgba(47,127,199,.1); }
+.batch-result-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; max-height: 300px; overflow-y: auto; padding-right: 2px; }
+.batch-result-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 14px; border: 2px solid var(--border); background: var(--white); cursor: pointer; transition: border-color .15s, background .15s; }
+.batch-result-item.selected { border-color: var(--blue); background: rgba(47,127,199,.05); }
+.batch-result-item.skipped { opacity: .5; cursor: default; border-style: dashed; }
+.batch-checkbox { width: 20px; height: 20px; border-radius: 6px; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background .15s, border-color .15s; }
+.batch-result-item.selected .batch-checkbox { background: var(--blue); border-color: var(--blue); }
+.batch-result-item.selected .batch-checkbox::after { content: '✓'; color: white; font-size: 12px; font-weight: 700; }
+.batch-result-body { flex: 1; min-width: 0; }
+.batch-result-name { font-size: 13px; font-weight: 700; color: var(--navy); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.batch-result-sub { font-size: 11px; color: var(--text); margin-top: 1px; }
+.batch-result-price { font-size: 12px; font-weight: 700; color: var(--green); white-space: nowrap; }
+.batch-result-cat { width: 24px; height: 24px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
+.batch-save-btn { width: 100%; padding: 15px; border-radius: 14px; background: linear-gradient(135deg, var(--green), #4dc8aa); color: white; font-size: 15px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px; transition: transform .2s; margin-bottom: 8px; }
+.batch-save-btn:active { transform: scale(.98); }
+.batch-save-btn:disabled { opacity: .4; }
+.batch-skipped-note { font-size: 11px; color: var(--text); text-align: center; padding: 6px; }
 
-.activity-card { background: white; border-radius: 14px; padding: 14px; border: 1.5px solid var(--border); margin-bottom: 10px; }
-.activity-name { font-weight: 700; color: var(--navy); margin-bottom: 6px; }
-.activity-meta { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
-.activity-tag { background: var(--border); color: var(--text); padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; }
-.activity-location { color: var(--blue); font-size: 11px; font-weight: 700; cursor: pointer; text-decoration: underline; margin-top: 6px; }
-.activity-desc { font-size: 12px; color: var(--text); margin-top: 6px; line-height: 1.4; }
+.full-loader { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; }
+.full-loader .spinner { width: 44px; height: 44px; border: 4px solid var(--border); border-top-color: var(--blue); border-radius: 50%; animation: spin .8s linear infinite; }
+.full-loader p { font-size: 14px; color: var(--text); }
 
-.fab { position: fixed; bottom: 80px; right: 24px; width: 56px; height: 56px; border-radius: 16px;
-  background: linear-gradient(135deg, var(--blue), var(--teal)); color: white; display: flex;
-  align-items: center; justify-content: center; font-size: 24px; cursor: pointer;
-  box-shadow: 0 4px 20px rgba(47,127,199,.4); z-index: 10; transition: transform .2s; }
-.fab:active { transform: scale(.92); }
-
-.modal-overlay { position: fixed; inset: 0; background: rgba(17,49,74,.5); z-index: 100;
-  display: none; align-items: center; justify-content: center; backdrop-filter: blur(3px); }
-.modal-overlay.active { display: flex; }
-.modal { background: white; border-radius: 20px; padding: 24px; max-width: 90%; max-height: 90vh;
-  overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,.2); }
-.modal-title { font-family: 'Baloo 2'; font-size: 20px; font-weight: 800; color: var(--navy); margin-bottom: 16px; }
-.modal-close { position: absolute; top: 16px; right: 16px; width: 32px; height: 32px; border-radius: 10px;
-  background: var(--border); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; }
-
-.bottom-nav { position: absolute; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid var(--border);
-  display: flex; justify-content: space-around; padding: 8px 0; }
-.nav-item { flex: 1; text-align: center; padding: 8px; color: var(--text); font-size: 11px; font-weight: 700; cursor: pointer; }
-.nav-item.active { color: var(--blue); }
+.code-block { background: var(--navy); color: #cfe6f5; font-family: 'Courier New', monospace; font-size: 11px; line-height: 1.5; padding: 12px; border-radius: 12px; white-space: pre-wrap; word-break: break-word; max-height: 200px; overflow-y: auto; margin-bottom: 12px; }
+.help-list { font-size: 12px; color: var(--text); line-height: 1.7; margin-bottom: 14px; padding-left: 4px; }
 </style>
 </head>
 <body>
+<div class="phone-wrap">
+<div class="phone">
 
-<!-- Auth Screen -->
-<div id="auth-screen" class="screen active">
-  <div class="container">
-    <div class="card">
-      <div class="title">Triply</div>
-      <div class="subtitle">Plan je reis samen met vrienden</div>
-      <div id="auth-message"></div>
-      <input type="email" id="auth-email" placeholder="Email" autocomplete="email">
-      <input type="password" id="auth-password" placeholder="Wachtwoord" autocomplete="current-password">
-      <button id="btn-submit" class="btn btn-primary" onclick="handleAuth()">Inloggen</button>
-      <div class="divider">of</div>
-      <button id="btn-toggle" class="btn btn-secondary" onclick="toggleSignup()">Nieuw account</button>
+  <!-- Status Bar (shared) -->
+  <div class="status-bar">
+    <span class="time" id="clock">9:41</span>
+    <div class="status-icons">
+      <svg width="16" height="12" viewBox="0 0 16 12"><rect x="0" y="3" width="3" height="9" rx="1" opacity=".4"/><rect x="4" y="2" width="3" height="10" rx="1" opacity=".6"/><rect x="8" y="0" width="3" height="12" rx="1" opacity=".8"/><rect x="12" y="0" width="3" height="12" rx="1"/></svg>
+      <svg width="15" height="12" viewBox="0 0 15 12"><path d="M7.5 2.5c2.8 0 5.3 1.1 7.1 2.9L7.5 12 .4 5.4C2.2 3.6 4.7 2.5 7.5 2.5z" opacity=".4"/><path d="M7.5 5c1.6 0 3.1.7 4.2 1.7L7.5 12l-4.2-5.3C4.4 5.7 5.9 5 7.5 5z" opacity=".7"/><path d="M7.5 7.5c.9 0 1.7.4 2.2 1L7.5 12l-2.2-3.5c.5-.6 1.3-1 2.2-1z"/></svg>
+      <svg width="25" height="12" viewBox="0 0 25 12"><rect x="0" y="1" width="22" height="10" rx="3" stroke="white" stroke-width="1.5" fill="none" opacity=".4"/><rect x="23" y="4" width="2" height="4" rx="1" fill="white" opacity=".4"/><rect x="1.5" y="2.5" width="17" height="7" rx="2" fill="white"/></svg>
     </div>
   </div>
-</div>
 
-<!-- Trip Selector Screen -->
-<div id="trip-screen" class="screen">
-  <div class="container">
-    <div class="card">
-      <div class="title">Mijn reizen</div>
-      <div id="trips-list"></div>
-      <button class="btn btn-primary" onclick="showCreateTrip()">+ Nieuwe reis</button>
-      <button class="btn btn-secondary" onclick="handleLogout()" style="margin-top:10px;">Logout</button>
+  <!-- ═══ SCREEN: LOADING ═══════════════════════════════════════ -->
+  <div class="screen active" id="screen-loading">
+    <div class="full-loader">
+      <div class="spinner"></div>
+      <p>Triply laden...</p>
     </div>
   </div>
-</div>
 
-<!-- Create Trip Screen -->
-<div id="create-trip-screen" class="screen">
-  <div class="container">
-    <div class="card">
-      <div class="title">Nieuwe reis</div>
-      <input type="text" id="trip-name" placeholder="Naam (bijv. Vakantie 2026)">
-      <input type="text" id="trip-destination" placeholder="Bestemming (bijv. Rhodos)">
-      <input type="date" id="trip-start">
-      <input type="date" id="trip-end">
-      <input type="text" id="trip-hotel" placeholder="Hotel naam">
-      <button class="btn btn-primary" onclick="createTrip()">Reis aanmaken</button>
-      <button class="btn btn-secondary" onclick="showTripSelector()" style="margin-top:10px;">Terug</button>
-    </div>
-  </div>
-</div>
-
-<!-- Planner Screen -->
-<div id="planner-screen" class="screen" style="display:flex;flex-direction:column !important;width:100%;max-width:100% !important;">
-  <div class="phone-wrap" style="min-height:auto;padding:0;margin:0">
-    <div class="phone">
-      <div class="header">
-        <div class="header-title" id="trip-title">Trip</div>
-        <div class="header-sub" id="trip-dates"></div>
-      </div>
-
-      <div class="tabs">
-        <div class="tab active" onclick="switchTab('planning')">📅 Planning</div>
-        <div class="tab" onclick="switchTab('activities')">📍 Activiteiten</div>
-        <div class="tab" onclick="switchTab('group')">👥 Groep</div>
-      </div>
-
-      <div class="content">
-        <!-- Planning Tab -->
-        <div id="planning-tab" class="tab-content active">
-          <div class="section-title">Dagplanning</div>
-          <div id="planning-content"></div>
+  <!-- ═══ SCREEN: SETUP (Firebase config) ═══════════════════════ -->
+  <div class="screen" id="screen-setup">
+    <div class="center-screen">
+      <div style="padding:24px 24px 40px">
+        <div class="brand"><div class="brand-logo">✈️ Triply</div><div class="brand-tag">Eenmalige instelling</div></div>
+        <p style="font-size:13px;color:var(--text);line-height:1.6;margin-bottom:14px">
+          Triply gebruikt <strong style="color:var(--navy)">Firebase</strong> als database zodat jij en je reisgenoten elkaars activiteiten live zien.
+        </p>
+        <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:6px">Zo stel je het in:</div>
+        <ol class="help-list">
+          <li>1. Ga naar <strong style="color:var(--blue)">console.firebase.google.com</strong> en maak een project.</li>
+          <li>2. Voeg een <strong>Web-app</strong> toe (&lt;/&gt;) en kopieer het <strong>firebaseConfig</strong> object.</li>
+          <li>3. Zet onder <strong>Build → Authentication</strong> de providers <strong>E-mail/Wachtwoord</strong> en <strong>Google</strong> aan.</li>
+          <li>4. Maak een <strong>Firestore Database</strong> aan (productie-modus).</li>
+          <li>5. Plak onderstaande beveiligingsregels in <strong>Firestore → Rules</strong>.</li>
+        </ol>
+        <div style="font-size:12px;font-weight:700;color:var(--navy);margin-bottom:6px">Firestore beveiligingsregels:</div>
+        <div class="code-block" id="rules-block"></div>
+        <button class="btn-block btn-ghost" style="margin-bottom:18px" onclick="copyRules()">📋 Regels kopiëren</button>
+        <div class="field">
+          <label>Plak je firebaseConfig (JSON of het JS-object):</label>
+          <textarea class="input mono" id="setup-config" placeholder='{
+  "apiKey": "...",
+  "authDomain": "...",
+  "projectId": "...",
+  "appId": "..."
+}'></textarea>
         </div>
-
-        <!-- Activities Tab -->
-        <div id="activities-tab" class="tab-content" style="display:none">
-          <div class="section-title">Alle activiteiten</div>
-          <div id="activities-content"></div>
-        </div>
-
-        <!-- Group Tab -->
-        <div id="group-tab" class="tab-content" style="display:none">
-          <div id="group-content"></div>
-        </div>
-      </div>
-
-      <button class="fab" onclick="showAddActivityModal()">➕</button>
-
-      <div class="bottom-nav">
-        <div class="nav-item active" onclick="showTripSelector()">← Terug</div>
-        <div class="nav-item" onclick="handleLogout()">🚪 Logout</div>
+        <button class="btn-block btn-fill" onclick="saveFirebaseConfig()">Opslaan & starten</button>
+        <div class="form-error" id="setup-error"></div>
       </div>
     </div>
   </div>
-</div>
 
-<!-- Add Activity Modal -->
-<div id="add-modal" class="modal-overlay">
-  <div class="modal" onclick="event.stopPropagation()" style="position:relative">
-    <div class="modal-close" onclick="closeAddActivityModal()">✕</div>
-    <div class="modal-title">Voeg activiteit toe</div>
-    <textarea id="activity-url" placeholder="Plak hier een TikTok URL of beschrijving van de activiteit..." style="margin-bottom:12px"></textarea>
-    <div id="modal-message" style="margin-bottom:12px"></div>
-    <button id="add-btn" class="btn btn-primary" onclick="analyzeActivity()">🤖 AI analyseren</button>
-    <button class="btn btn-secondary" onclick="closeAddActivityModal()" style="margin-top:8px">Annuleren</button>
+  <!-- ═══ SCREEN: AUTH ══════════════════════════════════════════ -->
+  <div class="screen" id="screen-auth">
+    <div class="center-screen">
+      <div class="center-inner">
+        <div class="brand"><div class="brand-logo">✈️ Triply</div><div class="brand-tag">Plan reizen samen</div></div>
+        <div id="invite-banner"></div>
+        <div class="auth-tabs">
+          <button class="auth-tab active" id="atab-login" onclick="setAuthMode('login')">Inloggen</button>
+          <button class="auth-tab" id="atab-register" onclick="setAuthMode('register')">Registreren</button>
+        </div>
+        <div id="auth-form"></div>
+        <div class="divider-or">of</div>
+        <button class="btn-block btn-google" onclick="googleSignIn()">
+          <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.3-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 16 19 13 24 13c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.5-5.2l-6.2-5.3C29.2 35 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.5l6.2 5.3C39.8 36.5 44 31 44 24c0-1.3-.1-2.3-.4-3.5z"/></svg>
+          Doorgaan met Google
+        </button>
+        <div class="form-error" id="auth-error"></div>
+      </div>
+    </div>
   </div>
-</div>
+
+  <!-- ═══ SCREEN: HOME (my trips) ═══════════════════════════════ -->
+  <div class="screen" id="screen-home">
+    <div class="app-header">
+      <div class="header-top">
+        <div class="app-title">Triply ✈️</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="icon-btn" onclick="openSettings()" title="Instellingen">
+            <svg width="18" height="18" fill="white" viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94s-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.49.49 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87a.49.49 0 00.12.61l2.03 1.58c-.05.3-.07.61-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.57 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+          </button>
+          <button class="avatar-btn" id="home-avatar" onclick="openProfile()"></button>
+        </div>
+      </div>
+      <div class="header-sub" id="home-greeting"></div>
+    </div>
+    <div class="content">
+      <div class="tab-panel active" style="position:relative">
+        <div class="section" style="padding-bottom:0">
+          <div class="section-title">Mijn reizen <span class="section-count" id="trip-count">0</span></div>
+        </div>
+        <div class="trips-grid" id="trips-list"></div>
+      </div>
+    </div>
+    <button class="fab fab-home" onclick="openTripActions()">
+      <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg>
+    </button>
+  </div>
+
+  <!-- ═══ SCREEN: TRIP (planner) ════════════════════════════════ -->
+  <div class="screen" id="screen-trip">
+    <div class="app-header">
+      <div class="header-top">
+        <div style="display:flex;align-items:center;gap:8px;min-width:0">
+          <button class="icon-btn" onclick="goHome()" title="Terug">
+            <svg width="18" height="18" fill="white" viewBox="0 0 24 24"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+          </button>
+          <div style="min-width:0">
+            <div class="app-title" id="trip-title" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Reis</div>
+            <div class="header-sub" id="trip-subtitle"></div>
+          </div>
+        </div>
+        <button class="icon-btn" onclick="openTripSettings()" title="Instellingen">
+          <svg width="18" height="18" fill="white" viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94s-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.49.49 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87a.49.49 0 00.12.61l2.03 1.58c-.05.3-.07.61-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.57 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+        </button>
+      </div>
+      <div class="header-badges">
+        <span class="badge badge-hotel" id="badge-dest">📍 —</span>
+        <span class="badge badge-dates" id="badge-days">📅 —</span>
+        <span class="badge badge-budget" id="header-budget">💶 €0</span>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('reis')">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        Reis
+      </button>
+      <button class="tab" onclick="switchTab('planning')">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3h-1V1h-2v2H8V1H6v2H5C3.89 3 3 3.9 3 5v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/></svg>
+        Planning
+      </button>
+      <button class="tab" onclick="switchTab('kaart')">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z"/></svg>
+        Kaart
+      </button>
+    </div>
+
+    <div class="content">
+      <!-- REIS -->
+      <div class="tab-panel active" id="panel-reis">
+        <div style="height:8px"></div>
+        <div class="budget-card" id="budget-card" style="display:none">
+          <div class="budget-title">Totale reiskosten (geschat)</div>
+          <div class="budget-total" id="budget-total">€0</div>
+          <div class="budget-sub" id="budget-sub">per persoon</div>
+          <div class="budget-breakdown">
+            <div class="budget-item"><div class="budget-item-label">Activiteiten</div><div class="budget-item-val" id="budget-acts">€0</div></div>
+            <div class="budget-item"><div class="budget-item-label">Gepland</div><div class="budget-item-val" id="budget-planned">0</div></div>
+            <div class="budget-item"><div class="budget-item-label">Wishlist</div><div class="budget-item-val" id="budget-wishlist">0</div></div>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section-title">Geplande activiteiten <span class="section-count" id="planned-count">0</span></div>
+          <div id="planned-list"></div>
+        </div>
+        <div class="section" style="padding-bottom:80px">
+          <div class="section-title">Wishlist <span class="section-count" id="wishlist-count" style="background:var(--orange)">0</span></div>
+          <div id="wishlist-list"></div>
+          <div class="empty-state" id="empty-state">
+            <div class="empty-icon">🌍</div>
+            <h3>Nog niets toegevoegd</h3>
+            <p>Plak een TikTok-link van een activiteit op je bestemming en de AI voegt hem toe.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- PLANNING -->
+      <div class="tab-panel" id="panel-planning">
+        <div style="height:8px"></div>
+        <div id="planning-days"></div>
+        <div class="wishlist-section">
+          <div class="section-title" style="padding:0 0 8px">Wishlist <span class="section-count" id="plan-wishlist-count" style="background:var(--orange)">0</span></div>
+          <div id="planning-wishlist"></div>
+        </div>
+      </div>
+
+      <!-- KAART -->
+      <div class="tab-panel" id="panel-kaart" style="overflow:hidden">
+        <div id="map" style="position:absolute;inset:0;"></div>
+        <div class="map-loading" id="map-loading"><div class="spinner"></div><p>Kaart laden...</p></div>
+        <div class="map-legend" id="map-legend" style="display:none"></div>
+      </div>
+    </div>
+
+    <button class="fab" onclick="openAddSheet()">
+      <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg>
+    </button>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <!-- ═══ SHEET: TRIP ACTIONS (new/join) ════════════════════════ -->
+  <div class="sheet-overlay" id="actions-overlay" onclick="closeSheet('actions-overlay', event)">
+    <div class="sheet" onclick="event.stopPropagation()">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header"><div class="sheet-title">Reis toevoegen</div>
+        <button class="sheet-close" onclick="closeSheet('actions-overlay')"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="#708496" stroke-width="2" stroke-linecap="round"/></svg></button>
+      </div>
+      <div class="sheet-body">
+        <div class="sheet-option" onclick="openCreateTrip()">
+          <div class="sheet-option-icon" style="background:rgba(47,127,199,.12)">🧳</div>
+          <div><div class="sheet-option-title">Nieuwe reis</div><div class="sheet-option-sub">Start een eigen reisplanning</div></div>
+        </div>
+        <div class="sheet-option" onclick="openJoinTrip()">
+          <div class="sheet-option-icon" style="background:rgba(239,143,76,.12)">🔑</div>
+          <div><div class="sheet-option-title">Code invoeren</div><div class="sheet-option-sub">Doe mee aan een gedeelde reis</div></div>
+        </div>
+        <div style="height:8px"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SHEET: CREATE TRIP ════════════════════════════════════ -->
+  <div class="sheet-overlay" id="create-overlay" onclick="closeSheet('create-overlay', event)">
+    <div class="sheet" onclick="event.stopPropagation()">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header"><div class="sheet-title">Nieuwe reis</div>
+        <button class="sheet-close" onclick="closeSheet('create-overlay')"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="#708496" stroke-width="2" stroke-linecap="round"/></svg></button>
+      </div>
+      <div class="sheet-body">
+        <div class="field"><label>Naam van de reis</label><input class="input" id="ct-name" placeholder="Zomervakantie 2026"></div>
+        <div class="field"><label>Bestemming</label><input class="input" id="ct-dest" placeholder="Rhodos, Griekenland"></div>
+        <div style="display:flex;gap:10px">
+          <div class="field" style="flex:1"><label>Startdatum</label><input class="input" type="date" id="ct-start"></div>
+          <div class="field" style="flex:1"><label>Einddatum</label><input class="input" type="date" id="ct-end"></div>
+        </div>
+        <div class="field"><label>Header-emoji (optioneel)</label><input class="input" id="ct-emoji" maxlength="4" placeholder="🏖️"></div>
+        <button class="btn-block btn-fill" onclick="createTrip()">Reis aanmaken</button>
+        <div class="form-error" id="ct-error"></div>
+        <div style="height:8px"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SHEET: JOIN TRIP ══════════════════════════════════════ -->
+  <div class="sheet-overlay" id="join-overlay" onclick="closeSheet('join-overlay', event)">
+    <div class="sheet" onclick="event.stopPropagation()">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header"><div class="sheet-title">Code invoeren</div>
+        <button class="sheet-close" onclick="closeSheet('join-overlay')"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="#708496" stroke-width="2" stroke-linecap="round"/></svg></button>
+      </div>
+      <div class="sheet-body">
+        <p style="font-size:13px;color:var(--text);line-height:1.5;margin-bottom:14px">Voer de 6-tekens code in die je van een reisgenoot kreeg.</p>
+        <div class="field"><input class="input" id="jt-code" maxlength="6" placeholder="ABC123" style="text-transform:uppercase;text-align:center;font-size:22px;font-weight:700;letter-spacing:6px;font-family:'Baloo 2'"></div>
+        <button class="btn-block btn-green" onclick="joinTrip()">Deelnemen</button>
+        <div class="form-error" id="jt-error"></div>
+        <div style="height:8px"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SHEET: ADD ACTIVITY ═══════════════════════════════════ -->
+  <div class="sheet-overlay" id="add-overlay" onclick="closeSheet('add-overlay', event)">
+    <div class="sheet" onclick="event.stopPropagation()">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header"><div class="sheet-title" id="add-sheet-title">Activiteit toevoegen</div>
+        <button class="sheet-close" onclick="closeSheet('add-overlay')"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="#708496" stroke-width="2" stroke-linecap="round"/></svg></button>
+      </div>
+      <div class="sheet-body" id="add-sheet-body"></div>
+    </div>
+  </div>
+
+  <!-- ═══ SHEET: DETAIL ═════════════════════════════════════════ -->
+  <div class="sheet-overlay" id="detail-overlay" onclick="closeSheet('detail-overlay', event)">
+    <div class="sheet" onclick="event.stopPropagation()">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header"><div class="sheet-title">Details</div>
+        <button class="sheet-close" onclick="closeSheet('detail-overlay')"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="#708496" stroke-width="2" stroke-linecap="round"/></svg></button>
+      </div>
+      <div id="detail-sheet-body"></div>
+    </div>
+  </div>
+
+  <!-- ═══ SHEET: TRIP SETTINGS ══════════════════════════════════ -->
+  <div class="sheet-overlay" id="tripsettings-overlay" onclick="closeSheet('tripsettings-overlay', event)">
+    <div class="sheet" onclick="event.stopPropagation()">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header"><div class="sheet-title">Reisinstellingen</div>
+        <button class="sheet-close" onclick="closeSheet('tripsettings-overlay')"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="#708496" stroke-width="2" stroke-linecap="round"/></svg></button>
+      </div>
+      <div class="sheet-body" id="tripsettings-body"></div>
+    </div>
+  </div>
+
+  <!-- ═══ SHEET: SETTINGS (Groq key / account) ══════════════════ -->
+  <div class="sheet-overlay" id="settings-overlay" onclick="closeSheet('settings-overlay', event)">
+    <div class="sheet" onclick="event.stopPropagation()">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header"><div class="sheet-title">Instellingen</div>
+        <button class="sheet-close" onclick="closeSheet('settings-overlay')"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="#708496" stroke-width="2" stroke-linecap="round"/></svg></button>
+      </div>
+      <div class="sheet-body">
+        <div class="field">
+          <label>🔑 Groq API Key</label>
+          <p style="font-size:12px;color:var(--text);margin-bottom:8px;line-height:1.5">Haal gratis een key op via <a href="https://console.groq.com" target="_blank" rel="noopener" style="color:var(--blue);font-weight:700">console.groq.com</a>. Slaat lokaal op in je browser.</p>
+          <input type="password" class="input mono" id="settings-api-key" placeholder="gsk_..." autocomplete="off">
+        </div>
+        <button class="btn-block btn-fill" onclick="saveApiKey()">Opslaan</button>
+        <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
+          <div style="font-size:12px;font-weight:700;color:var(--navy);margin-bottom:8px">Account</div>
+          <button class="btn-block btn-danger" onclick="logout()">Uitloggen</button>
+        </div>
+        <div style="height:20px"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SHEET: PROFILE ════════════════════════════════════════ -->
+  <div class="sheet-overlay" id="profile-overlay" onclick="closeSheet('profile-overlay', event)">
+    <div class="sheet" onclick="event.stopPropagation()">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header"><div class="sheet-title">Profiel</div>
+        <button class="sheet-close" onclick="closeSheet('profile-overlay')"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="#708496" stroke-width="2" stroke-linecap="round"/></svg></button>
+      </div>
+      <div class="sheet-body" id="profile-body"></div>
+    </div>
+  </div>
+
+</div><!-- /phone -->
+</div><!-- /phone-wrap -->
 
 <script>
-// Global state
-var _sb = null;
-var currentUser = null;
-var currentTrip = null;
-var tripDays = [];
-var isSignup = false;
-var groqKey = localStorage.getItem('groq_api_key') || '';
+// ═══════════════════════════════════════════════════════════════
+// CONSTANTS
+// ═══════════════════════════════════════════════════════════════
+const FB_CONFIG_KEY = 'triply_firebase_config';
+const GROQ_KEY = 'triply_groq_key';
+const PENDING_INVITE_KEY = 'triply_pending_invite';
+const PENDING_SHARE_KEY = 'triply_pending_share';
 
-async function initSupabase() {
+const CAT_COLORS = {
+  'Strand':         { a: '#57c0d8', b: '#2f7fc7', emoji: '🏖️' },
+  'Cultuur':        { a: '#8b5cf6', b: '#6d28d9', emoji: '🏛️' },
+  'Natuur':         { a: '#3aa08a', b: '#059669', emoji: '🌿' },
+  'Eten & drinken': { a: '#ef8f4c', b: '#dc6b19', emoji: '🍽️' },
+  'Avontuur':       { a: '#ef8f4c', b: '#e05c5c', emoji: '⚡' },
+  'Uitzicht':       { a: '#57c0d8', b: '#3aa08a', emoji: '🔭' },
+  'Dagtrip':        { a: '#2f7fc7', b: '#11314a', emoji: '🚗' },
+};
+
+const FIRESTORE_RULES = `rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /trips/{tripId} {
+      allow read: if request.auth != null &&
+        request.auth.uid in resource.data.members;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null &&
+        request.auth.uid in resource.data.members;
+      allow delete: if request.auth != null &&
+        resource.data.ownerId == request.auth.uid;
+
+      match /activities/{activityId} {
+        allow read, write: if request.auth != null &&
+          request.auth.uid in get(/databases/$(database)/documents/trips/$(tripId)).data.members;
+      }
+    }
+  }
+}`;
+
+// ═══════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════
+let app, auth, db;
+let currentUser = null;
+let groqKey = '';
+let authMode = 'login';
+
+let myTrips = [];
+let tripsUnsub = null;
+
+let currentTrip = null;        // trip document data + id
+let tripUnsub = null;          // listener on the trip doc
+let activitiesUnsub = null;    // listener on activities
+let activities = [];           // current trip's activities
+
+let currentAddResult = null;
+let currentDetailId = null;
+let map = null;
+let markers = {};
+
+let batchResults = [];
+let batchSelected = new Set();
+
+// ═══════════════════════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════════════════════
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function $(id) { return document.getElementById(id); }
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  $(id).classList.add('active');
+}
+function closeSheet(id, event) {
+  if (event && event.target !== event.currentTarget) return;
+  $(id).classList.remove('open');
+}
+function openSheet(id) { $(id).classList.add('open'); }
+
+let toastTimer;
+function showToast(msg) {
+  const el = $('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
+}
+function initials(name) {
+  const p = (name || '').trim().split(/\s+/);
+  return ((p[0]?.[0] || '') + (p[1]?.[0] || '')).toUpperCase() || '🙂';
+}
+function genInviteCode() { return Math.random().toString(36).substr(2, 6).toUpperCase(); }
+
+function updateClock() {
+  const now = new Date();
+  $('clock').textContent = `${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`;
+}
+
+// Date helpers
+function parseDate(s) { const d = new Date(s + 'T00:00:00'); return isNaN(d) ? null : d; }
+function daysBetween(start, end) {
+  const a = parseDate(start), b = parseDate(end);
+  if (!a || !b) return 1;
+  return Math.max(1, Math.round((b - a) / 86400000) + 1);
+}
+const NL_DAYS = ['Zondag','Maandag','Dinsdag','Woensdag','Donderdag','Vrijdag','Zaterdag'];
+const NL_MONTHS = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
+function dayInfo(trip, n) {
+  const start = parseDate(trip.startDate);
+  if (!start) return { n, label: `Dag ${n}`, date: '' };
+  const d = new Date(start.getTime() + (n - 1) * 86400000);
+  return {
+    n,
+    label: `${NL_DAYS[d.getDay()]} ${d.getDate()} ${NL_MONTHS[d.getMonth()]}`,
+    date: `${d.getDate()} ${NL_MONTHS[d.getMonth()]}`,
+  };
+}
+function fmtRange(trip) {
+  const a = parseDate(trip.startDate), b = parseDate(trip.endDate);
+  if (!a || !b) return '';
+  return `${a.getDate()} ${NL_MONTHS[a.getMonth()]} – ${b.getDate()} ${NL_MONTHS[b.getMonth()]} ${b.getFullYear()}`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// FIREBASE SETUP
+// ═══════════════════════════════════════════════════════════════
+function getStoredFbConfig() {
+  try { return JSON.parse(localStorage.getItem(FB_CONFIG_KEY) || 'null'); } catch(e) { return null; }
+}
+
+function parseConfigInput(raw) {
+  raw = raw.trim();
+  if (!raw) throw new Error('Leeg veld');
+  // Extract the {...} block from a possible JS snippet
+  const m = raw.match(/\{[\s\S]*\}/);
+  if (!m) throw new Error('Geen geldig config-object gevonden');
+  let body = m[0];
+  try { return JSON.parse(body); } catch(e) {}
+  // Convert JS object literal to JSON: quote keys, swap single quotes, drop trailing commas
+  let json = body
+    .replace(/([{,]\s*)([A-Za-z0-9_]+)\s*:/g, '$1"$2":')
+    .replace(/'/g, '"')
+    .replace(/,(\s*[}\]])/g, '$1');
+  return JSON.parse(json);
+}
+
+function saveFirebaseConfig() {
+  const errEl = $('setup-error');
+  errEl.textContent = '';
+  let cfg;
   try {
-    const r = await fetch('/api/config');
-    const cfg = await r.json();
-    if (!cfg.supabaseUrl || !cfg.supabaseKey) {
-      document.getElementById('auth-message').innerHTML = `
-        <div class="error" style="text-align:left;line-height:1.6">
-          ⚠️ <b>App niet geconfigureerd.</b><br>
-          Ga naar <b>vercel.com → vakantie-webapp → Settings</b> en voeg toe:<br><br>
-          SUPABASE_URL en SUPABASE_ANON_KEY
-        </div>`;
+    cfg = parseConfigInput($('setup-config').value);
+  } catch(e) {
+    errEl.textContent = 'Kon de config niet lezen: ' + e.message;
+    return;
+  }
+  if (!cfg.apiKey || !cfg.projectId) {
+    errEl.textContent = 'Config mist apiKey of projectId.';
+    return;
+  }
+  localStorage.setItem(FB_CONFIG_KEY, JSON.stringify(cfg));
+  showToast('Firebase opgeslagen ✅');
+  setTimeout(() => location.reload(), 500);
+}
+
+function copyRules() {
+  navigator.clipboard.writeText(FIRESTORE_RULES).then(
+    () => showToast('Regels gekopieerd 📋'),
+    () => showToast('Kopiëren mislukt')
+  );
+}
+
+function initFirebase() {
+  const cfg = getStoredFbConfig();
+  if (!cfg) { showScreen('screen-setup'); return false; }
+  try {
+    app = firebase.initializeApp(cfg);
+    auth = firebase.auth();
+    db = firebase.firestore();
+    return true;
+  } catch(e) {
+    $('setup-error').textContent = 'Firebase init mislukte: ' + e.message;
+    showScreen('screen-setup');
+    return false;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════════════════════════
+function setAuthMode(mode) {
+  authMode = mode;
+  $('atab-login').classList.toggle('active', mode === 'login');
+  $('atab-register').classList.toggle('active', mode === 'register');
+  $('auth-error').textContent = '';
+  renderAuthForm();
+}
+
+function renderAuthForm() {
+  const isReg = authMode === 'register';
+  $('auth-form').innerHTML = `
+    ${isReg ? `<div class="field"><label>Naam</label><input class="input" id="auth-name" placeholder="Jouw naam" autocomplete="name"></div>` : ''}
+    <div class="field"><label>E-mail</label><input class="input" id="auth-email" type="email" placeholder="jij@email.com" autocomplete="email"></div>
+    <div class="field"><label>Wachtwoord</label><input class="input" id="auth-pass" type="password" placeholder="••••••••" autocomplete="${isReg ? 'new-password' : 'current-password'}"></div>
+    <button class="btn-block btn-fill" onclick="submitAuth()">${isReg ? 'Account aanmaken' : 'Inloggen'}</button>
+  `;
+  $('auth-form').querySelectorAll('input').forEach(inp => {
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') submitAuth(); });
+  });
+}
+
+function authErrorMsg(e) {
+  const c = e.code || '';
+  if (c.includes('invalid-email')) return 'Ongeldig e-mailadres.';
+  if (c.includes('email-already-in-use')) return 'Dit e-mailadres is al in gebruik.';
+  if (c.includes('weak-password')) return 'Wachtwoord moet minstens 6 tekens zijn.';
+  if (c.includes('wrong-password') || c.includes('invalid-credential')) return 'Onjuist e-mail of wachtwoord.';
+  if (c.includes('user-not-found')) return 'Geen account met dit e-mailadres.';
+  if (c.includes('popup-closed')) return 'Aanmelden geannuleerd.';
+  if (c.includes('network')) return 'Netwerkfout. Probeer opnieuw.';
+  if (c.includes('operation-not-allowed')) return 'Deze aanmeldmethode staat niet aan in Firebase.';
+  return e.message || 'Er ging iets mis.';
+}
+
+async function submitAuth() {
+  const errEl = $('auth-error');
+  errEl.textContent = '';
+  const email = $('auth-email')?.value.trim();
+  const pass = $('auth-pass')?.value;
+  if (!email || !pass) { errEl.textContent = 'Vul e-mail en wachtwoord in.'; return; }
+  try {
+    if (authMode === 'register') {
+      const name = $('auth-name')?.value.trim() || email.split('@')[0];
+      const cred = await auth.createUserWithEmailAndPassword(email, pass);
+      await cred.user.updateProfile({ displayName: name });
+    } else {
+      await auth.signInWithEmailAndPassword(email, pass);
+    }
+  } catch(e) {
+    errEl.textContent = authErrorMsg(e);
+  }
+}
+
+async function googleSignIn() {
+  $('auth-error').textContent = '';
+  try {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    await auth.signInWithPopup(provider);
+  } catch(e) {
+    $('auth-error').textContent = authErrorMsg(e);
+  }
+}
+
+async function logout() {
+  closeSheet('settings-overlay');
+  closeSheet('profile-overlay');
+  try { await auth.signOut(); } catch(e) {}
+}
+
+function userName() {
+  return currentUser?.displayName || currentUser?.email?.split('@')[0] || 'Reiziger';
+}
+
+// ═══════════════════════════════════════════════════════════════
+// AUTH STATE / ROUTING
+// ═══════════════════════════════════════════════════════════════
+function onAuth() {
+  auth.onAuthStateChanged(async (user) => {
+    currentUser = user;
+    cleanupTrip();
+    if (tripsUnsub) { tripsUnsub(); tripsUnsub = null; }
+
+    if (!user) {
+      showScreen('screen-auth');
+      renderInviteBanner();
+      setAuthMode('login');
       return;
     }
-    _sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey);
-    await checkAuth();
-  } catch(e) {
-    console.error('Init failed:', e);
-  }
-}
 
-async function checkAuth() {
-  if (!_sb) return;
-  const { data: { session } } = await _sb.auth.getSession();
-  currentUser = session?.user || null;
-  showAuthScreen();
-}
-
-async function handleAuth() {
-  const email = document.getElementById('auth-email').value.trim();
-  const password = document.getElementById('auth-password').value.trim();
-  if (!email || !password) { showMessage('Voer email en wachtwoord in', 'error'); return; }
-
-  document.getElementById('btn-submit').disabled = true;
-
-  try {
-    if (isSignup) {
-      const { data, error } = await _sb.auth.signUp({ email, password });
-      if (error) { showMessage(error.message, 'error'); return; }
-      if (data.session) {
-        currentUser = data.user;
-        await _sb.from('triply_users').upsert([{ id: currentUser.id, email }], { onConflict: 'id' });
-        showMessage('Account aangemaakt! 🎉', 'success');
-        setTimeout(() => showTripSelector(), 800);
-      } else {
-        showMessage('Check je e-mail voor bevestiging', 'success');
-      }
-    } else {
-      const { data, error } = await _sb.auth.signInWithPassword({ email, password });
-      if (error) { showMessage(error.message, 'error'); return; }
-      currentUser = data.user;
-      showMessage('Welkom terug! 👋', 'success');
-      setTimeout(() => showTripSelector(), 500);
+    // Process pending invite (joining a trip after login)
+    const pendingCode = localStorage.getItem(PENDING_INVITE_KEY);
+    if (pendingCode) {
+      localStorage.removeItem(PENDING_INVITE_KEY);
+      try { await joinTripByCode(pendingCode); } catch(e) {}
     }
-  } finally {
-    document.getElementById('btn-submit').disabled = false;
+
+    subscribeMyTrips();
+    goHome();
+  });
+}
+
+function renderInviteBanner() {
+  const code = localStorage.getItem(PENDING_INVITE_KEY);
+  const el = $('invite-banner');
+  if (!el) return;
+  el.innerHTML = code
+    ? `<div style="background:rgba(58,160,138,.1);border:1px solid rgba(58,160,138,.25);border-radius:14px;padding:12px;margin-bottom:18px;font-size:13px;color:var(--green);text-align:center;font-weight:600">🎉 Je wordt uitgenodigd voor reis <strong>${esc(code)}</strong>.<br>Log in of registreer om mee te doen.</div>`
+    : '';
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TRIPS (Firestore)
+// ═══════════════════════════════════════════════════════════════
+function subscribeMyTrips() {
+  if (tripsUnsub) tripsUnsub();
+  tripsUnsub = db.collection('trips')
+    .where(`members.${currentUser.uid}.role`, 'in', ['owner', 'member'])
+    .onSnapshot(
+      (snap) => {
+        myTrips = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        myTrips.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+        renderHome();
+      },
+      (err) => {
+        // Fallback for indexing/permission issues: read all then filter client-side
+        console.warn('trips query error', err);
+        fallbackLoadTrips();
+      }
+    );
+}
+
+async function fallbackLoadTrips() {
+  try {
+    const snap = await db.collection('trips').get();
+    myTrips = snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(t => t.members && t.members[currentUser.uid]);
+    myTrips.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+    renderHome();
+  } catch(e) {
+    showToast('Kon reizen niet laden');
   }
 }
 
-async function handleLogout() {
-  await _sb.auth.signOut();
-  currentUser = null;
-  currentTrip = null;
-  showAuthScreen();
+function renderHome() {
+  $('home-avatar').textContent = initials(userName());
+  $('home-greeting').textContent = `Hoi ${userName()} 👋`;
+  $('trip-count').textContent = myTrips.length;
+  const list = $('trips-list');
+  if (myTrips.length === 0) {
+    list.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">🧳</div>
+        <h3>Maak je eerste reis aan</h3>
+        <p>Tik op + om een nieuwe reis te starten of een code in te voeren.</p>
+      </div>`;
+    return;
+  }
+  list.innerHTML = myTrips.map(t => {
+    const memberCount = Object.keys(t.members || {}).length;
+    return `
+      <div class="trip-card" onclick="openTrip('${t.id}')">
+        <div class="trip-emoji">${esc(t.emoji || '✈️')}</div>
+        <div class="trip-card-body">
+          <div class="trip-card-name">${esc(t.name)}</div>
+          <div class="trip-card-dest">📍 ${esc(t.destination)}</div>
+          <div class="trip-card-meta">
+            <span>📅 ${esc(fmtRange(t) || (t.days + ' dagen'))}</span>
+            <span>👥 ${memberCount}</span>
+            <span>📌 ${t.activityCount != null ? t.activityCount : 0}</span>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
 }
 
-function showAuthScreen() {
-  isSignup = false;
-  document.getElementById('auth-screen').classList.add('active');
-  document.getElementById('trip-screen').classList.remove('active');
-  document.getElementById('create-trip-screen').classList.remove('active');
-  document.getElementById('planner-screen').classList.remove('active');
-  document.getElementById('auth-email').value = '';
-  document.getElementById('auth-password').value = '';
-  document.getElementById('auth-message').innerHTML = '';
-  document.getElementById('btn-submit').textContent = 'Inloggen';
-  document.getElementById('btn-toggle').textContent = 'Nieuw account';
+function openTripActions() { openSheet('actions-overlay'); }
+function openCreateTrip() {
+  closeSheet('actions-overlay');
+  $('ct-name').value = ''; $('ct-dest').value = ''; $('ct-emoji').value = '';
+  const today = new Date().toISOString().slice(0, 10);
+  $('ct-start').value = today; $('ct-end').value = today; $('ct-error').textContent = '';
+  openSheet('create-overlay');
 }
-
-function toggleSignup() {
-  isSignup = !isSignup;
-  document.getElementById('btn-toggle').textContent = isSignup ? 'Al een account?' : 'Nieuw account';
-  document.getElementById('btn-submit').textContent = isSignup ? 'Account aanmaken' : 'Inloggen';
-}
-
-function showTripSelector() {
-  document.getElementById('auth-screen').classList.remove('active');
-  document.getElementById('trip-screen').classList.add('active');
-  document.getElementById('create-trip-screen').classList.remove('active');
-  document.getElementById('planner-screen').classList.remove('active');
-  loadTrips();
-}
-
-function showCreateTrip() {
-  document.getElementById('auth-screen').classList.remove('active');
-  document.getElementById('trip-screen').classList.remove('active');
-  document.getElementById('create-trip-screen').classList.add('active');
-  document.getElementById('planner-screen').classList.remove('active');
+function openJoinTrip() {
+  closeSheet('actions-overlay');
+  $('jt-code').value = ''; $('jt-error').textContent = '';
+  openSheet('join-overlay');
 }
 
 async function createTrip() {
-  const name = document.getElementById('trip-name').value.trim();
-  const destination = document.getElementById('trip-destination').value.trim();
-  const start = document.getElementById('trip-start').value;
-  const end = document.getElementById('trip-end').value;
-  const hotel = document.getElementById('trip-hotel').value.trim();
-
-  if (!name || !destination || !start || !end) { showMessage('Vul alle velden in', 'error'); return; }
-
-  const { error } = await _sb.from('triply_trips').insert([{
-    owner_id: currentUser.id, name, destination,
-    start_date: start, end_date: end, hotel_name: hotel,
-    location_lat: 0, location_lng: 0, hotel_lat: 0, hotel_lng: 0,
-  }]);
-
-  if (error) { showMessage(error.message, 'error'); return; }
-  showMessage('Reis aangemaakt! ✈️', 'success');
-  setTimeout(() => showTripSelector(), 800);
-}
-
-async function loadTrips() {
-  const { data, error } = await _sb.from('triply_trips')
-    .select('*').eq('owner_id', currentUser.id).order('created_at', { ascending: false });
-
-  if (error) { showMessage(error.message, 'error'); return; }
-
-  document.getElementById('trips-list').innerHTML = (data || []).map(t => `
-    <div style="padding:14px;border:1.5px solid var(--border);border-radius:12px;margin-bottom:10px;cursor:pointer;transition:border-color .2s"
-         onmouseenter="this.style.borderColor='var(--blue)'" onmouseleave="this.style.borderColor='var(--border)'"
-         onclick="selectTrip('${t.id}')">
-      <div style="font-weight:700;color:var(--navy);margin-bottom:3px">${t.name}</div>
-      <div style="font-size:12px;color:var(--text)">${t.destination} &nbsp;•&nbsp; ${t.start_date} t/m ${t.end_date}</div>
-    </div>
-  `).join('') || '<div style="color:var(--text);text-align:center;padding:24px">Nog geen reizen</div>';
-}
-
-function getDaysArray(startDate, endDate) {
-  const days = [];
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  let n = 1;
-
-  while (start <= end) {
-    const day = start.getDate();
-    const month = start.toLocaleString('nl-NL', { month: 'short' });
-    const weekday = start.toLocaleString('nl-NL', { weekday: 'long' });
-
-    days.push({
-      n,
-      date: `${day} ${month}`,
-      dateStr: start.toISOString().split('T')[0],
-      label: `${weekday.charAt(0).toUpperCase() + weekday.slice(1)} ${day} ${month}`,
-    });
-
-    start.setDate(start.getDate() + 1);
-    n++;
+  const errEl = $('ct-error'); errEl.textContent = '';
+  const name = $('ct-name').value.trim();
+  const dest = $('ct-dest').value.trim();
+  const start = $('ct-start').value;
+  const end = $('ct-end').value;
+  const emoji = $('ct-emoji').value.trim() || '✈️';
+  if (!name || !dest || !start || !end) { errEl.textContent = 'Vul alle verplichte velden in.'; return; }
+  if (parseDate(end) < parseDate(start)) { errEl.textContent = 'Einddatum ligt voor startdatum.'; return; }
+  const days = daysBetween(start, end);
+  const uid = currentUser.uid;
+  const trip = {
+    name, destination: dest, startDate: start, endDate: end, days, emoji,
+    inviteCode: genInviteCode(),
+    ownerId: uid,
+    members: { [uid]: { name: userName(), role: 'owner', joinedAt: Date.now() } },
+    activityCount: 0,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+  };
+  try {
+    const ref = await db.collection('trips').add(trip);
+    closeSheet('create-overlay');
+    showToast('Reis aangemaakt 🎉');
+    openTrip(ref.id);
+  } catch(e) {
+    errEl.textContent = 'Aanmaken mislukt: ' + e.message;
   }
-
-  return days;
 }
 
-async function selectTrip(tripId) {
-  const { data, error } = await _sb.from('triply_trips').select('*').eq('id', tripId).single();
-  if (error) { showMessage(error.message, 'error'); return; }
-
-  currentTrip = data;
-  tripDays = getDaysArray(data.start_date, data.end_date);
-
-  document.getElementById('trip-title').textContent = `${data.name}`;
-  document.getElementById('trip-dates').textContent = `${data.destination} • ${data.start_date} t/m ${data.end_date}`;
-
-  document.getElementById('auth-screen').classList.remove('active');
-  document.getElementById('trip-screen').classList.remove('active');
-  document.getElementById('create-trip-screen').classList.remove('active');
-  document.getElementById('planner-screen').classList.add('active');
-
-  await loadPlanning();
-  await loadActivities();
-  await loadGroup();
+async function joinTrip() {
+  const errEl = $('jt-error'); errEl.textContent = '';
+  const code = $('jt-code').value.trim().toUpperCase();
+  if (code.length !== 6) { errEl.textContent = 'Een code bestaat uit 6 tekens.'; return; }
+  try {
+    const id = await joinTripByCode(code);
+    closeSheet('join-overlay');
+    showToast('Je doet nu mee 🎉');
+    if (id) openTrip(id);
+  } catch(e) {
+    errEl.textContent = e.message;
+  }
 }
 
-function switchTab(tab) {
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
-
-  event.target.classList.add('active');
-  document.getElementById(tab + '-tab').style.display = 'block';
+async function joinTripByCode(code) {
+  code = code.trim().toUpperCase();
+  const snap = await db.collection('trips').where('inviteCode', '==', code).limit(1).get();
+  if (snap.empty) throw new Error('Geen reis gevonden met deze code.');
+  const doc = snap.docs[0];
+  const uid = currentUser.uid;
+  if (doc.data().members && doc.data().members[uid]) {
+    return doc.id; // already a member
+  }
+  await doc.ref.update({
+    [`members.${uid}`]: { name: userName(), role: 'member', joinedAt: Date.now() },
+  });
+  return doc.id;
 }
 
-async function loadPlanning() {
-  const { data: activities } = await _sb.from('triply_activities')
-    .select('*').eq('trip_id', currentTrip.id).order('day_number');
+// ═══════════════════════════════════════════════════════════════
+// OPEN / CLOSE TRIP (live sync)
+// ═══════════════════════════════════════════════════════════════
+function cleanupTrip() {
+  if (tripUnsub) { tripUnsub(); tripUnsub = null; }
+  if (activitiesUnsub) { activitiesUnsub(); activitiesUnsub = null; }
+  if (map) { map.remove(); map = null; markers = {}; }
+  currentTrip = null;
+  activities = [];
+}
 
-  const html = tripDays.map(day => {
-    const dayActivities = (activities || []).filter(a => a.day_number === day.n);
-    return `
-      <div class="day-card">
-        <div class="day-header">Dag ${day.n}: ${day.label}</div>
-        <div class="day-date">${day.dateStr}</div>
-        ${dayActivities.length ? dayActivities.map(a => `
-          <div class="activity-item">⏰ ${a.scheduled_time || '10:00'} — ${a.name}</div>
-        `).join('') : '<div class="activity-item" style="opacity:.5">Geen activiteiten gepland</div>'}
+function openTrip(tripId) {
+  cleanupTrip();
+  showScreen('screen-trip');
+  switchTab('reis');
+
+  tripUnsub = db.collection('trips').doc(tripId).onSnapshot((doc) => {
+    if (!doc.exists) { showToast('Reis bestaat niet meer'); goHome(); return; }
+    const data = doc.data();
+    if (!data.members || !data.members[currentUser.uid]) {
+      showToast('Je hebt geen toegang meer tot deze reis'); goHome(); return;
+    }
+    currentTrip = { id: doc.id, ...data };
+    renderTripHeader();
+    renderAll();
+  }, (err) => { showToast('Fout: ' + err.message); goHome(); });
+
+  activitiesUnsub = db.collection('trips').doc(tripId).collection('activities')
+    .onSnapshot((snap) => {
+      activities = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderAll();
+      if (map) refreshMapMarkers();
+    }, (err) => console.warn('activities error', err));
+}
+
+function goHome() {
+  cleanupTrip();
+  showScreen('screen-home');
+  renderHome();
+}
+
+function renderTripHeader() {
+  if (!currentTrip) return;
+  $('trip-title').textContent = `${currentTrip.emoji || '✈️'} ${currentTrip.name}`;
+  $('trip-subtitle').textContent = fmtRange(currentTrip);
+  $('badge-dest').textContent = `📍 ${currentTrip.destination}`;
+  $('badge-days').textContent = `📅 ${currentTrip.days} dagen`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RENDER TRIP CONTENT
+// ═══════════════════════════════════════════════════════════════
+function renderAll() {
+  if (!currentTrip) return;
+  renderReis();
+  renderPlanning();
+  updateBudget();
+}
+
+function daysArray() {
+  const out = [];
+  for (let n = 1; n <= (currentTrip?.days || 1); n++) out.push(dayInfo(currentTrip, n));
+  return out;
+}
+
+function renderReis() {
+  const planned = activities.filter(a => a.day != null);
+  const wishlist = activities.filter(a => a.day == null);
+  $('planned-count').textContent = planned.length;
+  $('wishlist-count').textContent = wishlist.length;
+
+  $('planned-list').innerHTML = planned.length
+    ? planned.sort((a, b) => (a.day - b.day) || (a.time || '').localeCompare(b.time || '')).map(activityCardHTML).join('')
+    : `<p style="font-size:13px;color:var(--text);text-align:center;padding:12px">Nog niets gepland</p>`;
+
+  $('wishlist-list').innerHTML = wishlist.map(activityCardHTML).join('');
+  $('empty-state').style.display = activities.length ? 'none' : '';
+  $('budget-card').style.display = activities.length ? '' : 'none';
+}
+
+function activityCardHTML(a) {
+  const cat = CAT_COLORS[a.category] || CAT_COLORS['Strand'];
+  const by = a.addedByName && a.addedBy !== currentUser?.uid ? `<div class="card-by">toegevoegd door ${esc(a.addedByName)}</div>` : '';
+  return `
+    <div class="activity-card" onclick="openDetail('${a.id}')">
+      <div class="card-accent" style="background:linear-gradient(to bottom,${cat.a},${cat.b})"></div>
+      <div class="card-body">
+        <div class="card-top">
+          <div class="card-name">${esc(a.name)}</div>
+          <div class="card-price ${a.is_free ? 'free' : ''}">${esc(a.price_label)}</div>
+        </div>
+        <div class="card-meta">
+          <span class="card-pill">📍 ${esc(a.area)}</span>
+          <span class="card-pill">${cat.emoji} ${esc(a.category)}</span>
+          ${a.duration ? `<span class="card-pill">⏱ ${esc(a.duration)}</span>` : ''}
+          ${a.day != null
+            ? `<span class="card-day">Dag ${a.day} · ${esc(a.time || '')}</span>`
+            : `<span class="card-wishlist">⭐ Wishlist</span>`}
+        </div>
+        ${by}
       </div>
-    `;
+    </div>`;
+}
+
+function renderPlanning() {
+  $('planning-days').innerHTML = daysArray().map(d => {
+    const acts = activities.filter(a => a.day === d.n).sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+    const dayTotal = acts.reduce((s, a) => s + (a.price_value || 0), 0);
+    return `
+      <div class="day-section">
+        <div class="day-header">
+          <div class="day-num">${d.n}</div>
+          <div class="day-info">
+            <div class="day-title">${esc(d.label)}</div>
+            <div class="day-date">${acts.length} activiteit${acts.length !== 1 ? 'en' : ''}</div>
+          </div>
+          ${dayTotal > 0 ? `<div class="day-total">€${dayTotal}</div>` : ''}
+        </div>
+        ${acts.length ? acts.map(dayCardHTML).join('') : `<div class="day-empty">Niets gepland</div>`}
+      </div>`;
   }).join('');
 
-  document.getElementById('planning-content').innerHTML = html;
+  const wishlist = activities.filter(a => a.day == null);
+  $('plan-wishlist-count').textContent = wishlist.length;
+  $('planning-wishlist').innerHTML = wishlist.length
+    ? wishlist.map(dayCardHTML).join('')
+    : `<div class="day-empty">Wishlist is leeg</div>`;
 }
 
-async function loadActivities() {
-  const { data: activities } = await _sb.from('triply_activities')
-    .select('*').eq('trip_id', currentTrip.id).order('created_at', { ascending: false });
-
-  const html = (activities || []).map(a => `
-    <div class="activity-card">
-      <div class="activity-name">${a.name}</div>
-      <div class="activity-meta">
-        <span class="activity-tag">🏷️ ${a.category}</span>
-        ${a.price_value > 0 ? `<span class="activity-tag">💶 €${a.price_value}</span>` : '<span class="activity-tag">Gratis</span>'}
-        ${a.day_number ? `<span class="activity-tag">Dag ${a.day_number}</span>` : '<span class="activity-tag">Wishlist</span>'}
+function dayCardHTML(a) {
+  const cat = CAT_COLORS[a.category] || CAT_COLORS['Strand'];
+  return `
+    <div class="day-card" onclick="openDetail('${a.id}')">
+      <div class="day-card-dot" style="background:${cat.a}"></div>
+      <div class="day-card-body">
+        <div class="day-card-name">${esc(a.name)}</div>
+        <div class="day-card-sub">📍 ${esc(a.area)} · ${cat.emoji} ${esc(a.category)}</div>
       </div>
-      ${a.description ? `<div class="activity-desc">${a.description}</div>` : ''}
-      <div class="activity-location" onclick="openMaps('${a.area}', ${a.lat}, ${a.lng})">
-        📍 ${a.area} — Open in Maps
-      </div>
-    </div>
-  `).join('') || '<div style="text-align:center;color:var(--text);padding:20px">Geen activiteiten. Klik het ➕ icoon!</div>';
-
-  document.getElementById('activities-content').innerHTML = html;
+      ${a.time && a.day != null ? `<div class="day-card-time">${esc(a.time)}</div>` : ''}
+      <div class="day-card-price">${a.is_free ? 'Gratis' : esc(a.price_label)}</div>
+    </div>`;
 }
 
-async function loadGroup() {
-  const { data: groups } = await _sb.from('triply_groups')
-    .select('*').eq('trip_id', currentTrip.id);
-
-  const html = (groups || []).map(g => `
-    <div style="margin-bottom:16px">
-      <div class="section-title">${g.name}</div>
-      <div style="background:white;padding:12px;border-radius:12px;border:1.5px solid var(--border);margin-bottom:12px">
-        <div style="font-size:12px;color:var(--text);margin-bottom:6px">📋 Groepscode</div>
-        <div style="font-family:monospace;font-size:14px;font-weight:700;color:var(--navy);padding:8px;background:var(--border);border-radius:8px;margin-bottom:8px">${g.share_code}</div>
-        <button class="btn btn-primary" onclick="copyCode('${g.share_code}')" style="font-size:13px;padding:10px">Kopieer code</button>
-      </div>
-      <div class="section-title" style="margin-top:8px">Deelnemers</div>
-      <div id="members-${g.id}"></div>
-    </div>
-  `).join('');
-
-  document.getElementById('group-content').innerHTML = html;
-
-  // Load members for each group
-  for (const group of (groups || [])) {
-    const { data: members } = await _sb.from('triply_group_members')
-      .select('*, triply_users(email, username)').eq('group_id', group.id);
-
-    const memberHtml = (members || []).map(m => `
-      <div style="padding:8px;background:var(--border);border-radius:10px;margin-bottom:6px;font-size:12px;color:var(--navy)">
-        👤 ${m.triply_users?.username || m.triply_users?.email || 'Onbekend'}
-      </div>
-    `).join('');
-
-    const memberEl = document.getElementById('members-' + group.id);
-    if (memberEl) memberEl.innerHTML = memberHtml || '<div style="color:var(--text);font-size:12px">Geen deelnemers</div>';
-  }
+function updateBudget() {
+  const total = activities.reduce((s, a) => s + (a.price_value || 0), 0);
+  const planned = activities.filter(a => a.day != null).length;
+  const wishlist = activities.filter(a => a.day == null).length;
+  $('budget-total').textContent = `€${total}`;
+  $('budget-acts').textContent = `€${total}`;
+  $('budget-planned').textContent = planned;
+  $('budget-wishlist').textContent = wishlist;
+  $('header-budget').textContent = `💶 €${total}`;
+  $('budget-sub').textContent = `p.p. · ${activities.length} activiteiten`;
 }
 
-function openMaps(area, lat, lng) {
-  const isMobile = /iPhone|iPad|Android/i.test(navigator.userAgent);
-  let url;
-
-  if (isMobile && /iPhone|iPad/.test(navigator.userAgent)) {
-    // Apple Maps
-    url = `maps://maps.apple.com/?address=${encodeURIComponent(area)}&ll=${lat},${lng}`;
-  } else {
-    // Google Maps
-    url = `https://maps.google.com/?q=${lat},${lng}`;
-  }
-
-  window.open(url, '_blank');
+// ═══════════════════════════════════════════════════════════════
+// TABS
+// ═══════════════════════════════════════════════════════════════
+function switchTab(name) {
+  document.querySelectorAll('#screen-trip .tab').forEach((t, i) => {
+    t.classList.toggle('active', ['reis', 'planning', 'kaart'][i] === name);
+  });
+  document.querySelectorAll('#screen-trip .tab-panel').forEach(p => p.classList.remove('active'));
+  $(`panel-${name}`).classList.add('active');
+  if (name === 'kaart') setTimeout(() => { initMap(); if (map) map.invalidateSize(); }, 50);
 }
 
-function showAddActivityModal() {
-  if (!groqKey) {
-    const key = prompt('Voer je Groq API key in (van console.groq.com)');
-    if (!key) return;
-    groqKey = key;
-    localStorage.setItem('groq_api_key', key);
-  }
-  document.getElementById('add-modal').classList.add('active');
-}
-
-function closeAddActivityModal() {
-  document.getElementById('add-modal').classList.remove('active');
-  document.getElementById('activity-url').value = '';
-  document.getElementById('modal-message').innerHTML = '';
-  document.getElementById('add-btn').disabled = false;
-  document.getElementById('add-btn').textContent = '🤖 AI analyseren';
-}
-
-async function analyzeActivity() {
-  const url = document.getElementById('activity-url').value.trim();
-  if (!url) { showModalMessage('Voer een URL of beschrijving in', 'error'); return; }
-
-  document.getElementById('add-btn').disabled = true;
-  document.getElementById('add-btn').textContent = '⏳ Analyseren...';
-  document.getElementById('modal-message').innerHTML = '';
-
+// ═══════════════════════════════════════════════════════════════
+// GEOCODING
+// ═══════════════════════════════════════════════════════════════
+async function geocodeNominatim(area, destination) {
   try {
-    // Simplified AI call — real impl would fetch TikTok metadata first
-    const prompt = `Analyseer deze vakantie-activiteit en extraheer:
-URL: ${url}
-Bestemming: ${currentTrip.destination}
-
-Geef ALLEEN geldige JSON terug (geen markdown):
-{
-  "name": "Activiteitsnaam (max 30 chars)",
-  "category": "Strand|Cultuur|Natuur|Eten & drinken|Avontuur|Uitzicht|Dagtrip",
-  "area": "Buurt/locatie",
-  "priceVal": 0,
-  "free": true,
-  "description": "1-2 zin Nederlands"
-}`;
-
-    const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${groqKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'llama-3.1-8b-instant',
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.2,
-        max_tokens: 300,
-      })
-    });
-
-    if (!r.ok) { showModalMessage('API fout: ' + (await r.json()).error?.message, 'error'); return; }
-
+    const q = encodeURIComponent(`${area || ''} ${destination || ''}`.trim());
+    const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${q}&limit=1`,
+      { headers: { 'Accept-Language': 'nl' } });
     const data = await r.json();
-    const text = data.choices[0].message.content;
-    const json = JSON.parse(text.match(/\{[\s\S]*\}/)[0]);
+    if (data && data[0]) return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+  } catch(e) {}
+  return null;
+}
+async function geocodeDestination(destination) {
+  const g = await geocodeNominatim('', destination);
+  return g || { lat: 20, lng: 0 };
+}
+async function geocode(area, destination) {
+  const g = await geocodeNominatim(area, destination);
+  if (g) return g;
+  const dest = await geocodeDestination(destination);
+  return { lat: dest.lat + (Math.random() - .5) * .04, lng: dest.lng + (Math.random() - .5) * .04 };
+}
 
-    const { error } = await _sb.from('triply_activities').insert([{
-      trip_id: currentTrip.id,
-      added_by: currentUser.id,
-      name: json.name,
-      category: json.category,
-      area: json.area,
-      price_value: json.priceVal || 0,
-      is_free: json.free,
-      description: json.description,
-      lat: 36.28 + (Math.random() - 0.5) * 0.1,
-      lng: 28.15 + (Math.random() - 0.5) * 0.1,
-      tiktok_url: url,
-    }]);
+// ═══════════════════════════════════════════════════════════════
+// GROQ AI
+// ═══════════════════════════════════════════════════════════════
+async function callGroq(prompt) {
+  const key = groqKey || localStorage.getItem(GROQ_KEY) || '';
+  if (!key) throw new Error('NO_KEY');
+  const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'llama-3.1-8b-instant',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.2, max_tokens: 600,
+    }),
+  });
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({}));
+    throw new Error(err.error?.message || `HTTP ${r.status}`);
+  }
+  const data = await r.json();
+  return data.choices[0].message.content;
+}
 
-    if (error) { showModalMessage(error.message, 'error'); return; }
+function buildPrompt(url, title, desc, author) {
+  const destination = currentTrip?.destination || 'de bestemming';
+  return `Analyseer deze TikTok video en extraheer activiteit informatie voor een reis.
 
-    showModalMessage('Activiteit toegevoegd! 🎉', 'success');
-    setTimeout(() => {
-      closeAddActivityModal();
-      loadActivities();
-    }, 1000);
+TikTok URL: ${url}
+Titel: "${title || ''}"
+Beschrijving: "${(desc || '').slice(0, 300)}"
+Creator: "${author || ''}"
+Bestemming van de reis: "${destination}"
 
+Extraheer de volgende informatie als JSON (alleen geldig JSON, geen markdown):
+{
+  "error": false,
+  "name": "activiteitsnaam (max 35 chars, Nederlands)",
+  "category": "Strand|Cultuur|Natuur|Eten & drinken|Avontuur|Uitzicht|Dagtrip",
+  "area": "specifieke locatie naam",
+  "price_label": "Gratis of €X p.p.",
+  "price_value": 0,
+  "is_free": true,
+  "needs_reservation": false,
+  "opening_hours": "09:00–20:00 of Altijd open",
+  "duration": "2 uur",
+  "travel_time": "30 min",
+  "description": "2-zins beschrijving in het Nederlands.",
+  "lat": 0.0,
+  "lng": 0.0
+}
+
+Als de video duidelijk NIET gaat over ${destination}: {"error": true, "message": "Dit gaat niet over ${destination}"}`;
+}
+
+function parseGroqJson(text) {
+  const clean = text.replace(/```json|```/g, '').trim();
+  const match = clean.match(/\{[\s\S]*\}/);
+  if (match) return JSON.parse(match[0]);
+  throw new Error('Geen JSON gevonden in AI response');
+}
+
+function normalizeParsed(parsed) {
+  // The model occasionally uses alternate keys; coerce to canonical schema
+  return {
+    name: parsed.name || 'Activiteit',
+    category: CAT_COLORS[parsed.category] ? parsed.category : 'Strand',
+    area: parsed.area || (currentTrip?.destination || ''),
+    price_label: parsed.price_label || (parsed.is_free ? 'Gratis' : '€?'),
+    price_value: Number(parsed.price_value) || 0,
+    is_free: parsed.is_free ?? (Number(parsed.price_value) === 0),
+    needs_reservation: !!parsed.needs_reservation,
+    opening_hours: parsed.opening_hours || 'Altijd open',
+    duration: parsed.duration || '2 uur',
+    travel_time: parsed.travel_time || '–',
+    description: parsed.description || '',
+    lat: Number(parsed.lat) || 0,
+    lng: Number(parsed.lng) || 0,
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TIKTOK FETCHER
+// ═══════════════════════════════════════════════════════════════
+async function fetchTikTokMeta(url) {
+  try {
+    const r = await fetch(`/api/tiktok?type=video&url=${encodeURIComponent(url)}`);
+    const json = await r.json();
+    const v = json?.data?.data || json?.data;
+    if (v && (v.title || v.desc)) {
+      return { title: v.title || '', desc: v.desc || v.title || '', author: v.author?.unique_id || '' };
+    }
+  } catch(e) {}
+  try {
+    const r = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(url)}`);
+    const data = await r.json();
+    if (data && data.title) return { title: data.title, desc: data.title, author: data.author_name || '' };
+  } catch(e) {}
+  const parts = url.split('/');
+  const author = parts.find(p => p.startsWith('@')) || '';
+  return { title: '', desc: '', author };
+}
+
+function extractTikTokUrls(text) {
+  const re = /https?:\/\/(?:www\.|vm\.|vt\.)?tiktok\.com\/[^\s"'<>]+/gi;
+  const matches = text.match(re) || [];
+  return [...new Set(matches.map(u => u.replace(/[,;)]+$/, '')))];
+}
+function isCollectionUrl(url) { return url.includes('/collection/'); }
+function extractCollectionId(url) {
+  const m = url.match(/\/collection\/[^/?#]*?(\d{10,})/);
+  if (m) return m[1];
+  const seg = url.split('/').filter(Boolean).pop()?.split('?')[0] || '';
+  const dm = seg.match(/(\d{10,})/);
+  return dm ? dm[1] : null;
+}
+async function fetchCollectionVideos(url) {
+  const collectionId = extractCollectionId(url);
+  if (!collectionId) return null;
+  try {
+    const r = await fetch(`/api/tiktok?type=collection&mix_id=${collectionId}`);
+    const json = await r.json();
+    if (json?.ok && json?.items?.length > 0) {
+      return json.items.map(v => ({
+        videoUrl: `https://www.tiktok.com/@${v.author?.unique_id || 'user'}/video/${v.aweme_id || v.id || ''}`,
+        title: v.title || v.desc || '',
+        desc: v.desc || v.title || '',
+        author: v.author?.unique_id || v.author?.nickname || '',
+        id: String(v.aweme_id || v.id || Math.random()),
+      }));
+    }
+  } catch(e) { console.warn('Collection fetch failed', e.message); }
+  return null;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ADD ACTIVITY FLOW
+// ═══════════════════════════════════════════════════════════════
+function openAddSheet(prefill) {
+  currentAddResult = null;
+  $('add-sheet-title').textContent = 'Activiteit toevoegen';
+  renderAddInput(prefill || '');
+  openSheet('add-overlay');
+}
+
+function renderAddInput(prefill = '') {
+  const hasKey = !!(groqKey || localStorage.getItem(GROQ_KEY));
+  $('add-sheet-body').innerHTML = `
+    <div style="margin-bottom:10px">
+      <textarea class="url-textarea" id="tiktok-url"
+        placeholder="Plak één of meerdere TikTok-links&#10;(één per regel, of een collectie-URL)"
+        autocomplete="off" spellcheck="false">${esc(prefill)}</textarea>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <button class="url-paste-btn" style="flex:1;padding:9px;border-radius:10px;font-size:12px" onclick="pasteUrl()">📋 Plakken</button>
+      <button style="flex:1;padding:9px;border-radius:10px;background:var(--border);color:var(--text);font-size:12px;font-weight:700" onclick="document.getElementById('tiktok-url').value=''">✕ Wissen</button>
+    </div>
+    <button class="analyze-btn" onclick="startAnalyze()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7z"/></svg>
+      AI analyseren
+    </button>
+    ${!hasKey ? `<div class="api-key-hint">⚙️ Nog geen API key? <a onclick="openSettings()">Voeg Groq key toe</a></div>` : ''}
+  `;
+  setTimeout(() => $('tiktok-url')?.focus(), 300);
+}
+
+async function pasteUrl() {
+  try {
+    const text = await navigator.clipboard.readText();
+    const el = $('tiktok-url');
+    if (el) el.value = (el.value ? el.value.trim() + '\n' : '') + text.trim();
+  } catch(e) { showToast('Plak handmatig (Ctrl+V)'); }
+}
+
+function renderParsingState(steps) {
+  $('add-sheet-body').innerHTML = `
+    <div class="parsing-state">
+      <div class="spinner"></div>
+      <div class="parsing-steps">
+        ${steps.map(s => `
+          <div class="parsing-step ${s.status}" id="step-${s.id}">
+            <span class="step-icon">${s.status === 'done' ? '✅' : s.status === 'active' ? '⏳' : '○'}</span>
+            ${s.label}
+          </div>`).join('')}
+      </div>
+    </div>`;
+}
+function updateStep(id, status) {
+  const el = $(`step-${id}`);
+  if (!el) return;
+  el.className = `parsing-step ${status}`;
+  el.querySelector('.step-icon').textContent = status === 'done' ? '✅' : status === 'active' ? '⏳' : '○';
+}
+
+async function startAnalyze() {
+  const raw = ($('tiktok-url')?.value || '').trim();
+  if (!raw) { showToast('Voeg eerst een TikTok URL in'); return; }
+  const key = groqKey || localStorage.getItem(GROQ_KEY) || '';
+  if (!key) { showToast('Stel eerst je Groq API key in ⚙️'); openSettings(); return; }
+
+  const urls = extractTikTokUrls(raw);
+  if (urls.length === 0) { showToast('Geen geldige TikTok-links gevonden'); return; }
+  if (urls.length > 1) { startMultiUrlAnalyze(urls); return; }
+  const url = urls[0];
+  if (isCollectionUrl(url)) { startCollectionAnalyze(url); return; }
+
+  $('add-sheet-title').textContent = 'Analyseren...';
+  renderParsingState([
+    { id: 'fetch', label: '1. TikTok ophalen', status: 'active' },
+    { id: 'ai', label: '2. AI analyseert', status: '' },
+    { id: 'geo', label: '3. Locatie bepalen', status: '' },
+  ]);
+
+  let meta = {};
+  try { meta = await fetchTikTokMeta(url); } catch(e) {}
+  updateStep('fetch', 'done');
+
+  updateStep('ai', 'active');
+  let parsed;
+  try {
+    parsed = parseGroqJson(await callGroq(buildPrompt(url, meta.title, meta.desc, meta.author)));
   } catch(e) {
-    showModalMessage(e.message, 'error');
-  } finally {
-    document.getElementById('add-btn').disabled = false;
-    document.getElementById('add-btn').textContent = '🤖 AI analyseren';
+    if (e.message === 'NO_KEY') return renderError('Groq API key ontbreekt', 'Ga naar instellingen om je API key in te voeren.');
+    return renderError('AI analyse mislukt', e.message);
+  }
+  if (parsed.error) return renderError('Geen match', parsed.message || `Dit lijkt geen video over ${currentTrip?.destination} te zijn.`);
+  updateStep('ai', 'done');
+
+  updateStep('geo', 'active');
+  const norm = normalizeParsed(parsed);
+  if (!norm.lat || !norm.lng) {
+    const geo = await geocode(norm.area, currentTrip?.destination);
+    norm.lat = geo.lat; norm.lng = geo.lng;
+  }
+  updateStep('geo', 'done');
+
+  currentAddResult = { url, ...norm, day: null, time: '10:00' };
+  renderResultCard(currentAddResult);
+}
+
+function renderResultCard(act) {
+  $('add-sheet-title').textContent = 'Gevonden!';
+  const cat = CAT_COLORS[act.category] || CAT_COLORS['Strand'];
+  $('add-sheet-body').innerHTML = `
+    <div class="result-card" style="background:linear-gradient(135deg,${cat.a},${cat.b})">
+      <div class="result-cat">${cat.emoji} ${esc(act.category)}</div>
+      <div class="result-name">${esc(act.name)}</div>
+      <span class="result-price">${esc(act.price_label)}</span>
+      ${act.description ? `<div class="result-blurb">${esc(act.description)}</div>` : ''}
+    </div>
+    <div class="result-info-grid">
+      <div class="result-info-item"><div class="result-info-label">📍 Locatie</div><div class="result-info-val">${esc(act.area)}</div></div>
+      <div class="result-info-item"><div class="result-info-label">🕐 Openingstijden</div><div class="result-info-val">${esc(act.opening_hours || '–')}</div></div>
+      <div class="result-info-item"><div class="result-info-label">⏱ Duur</div><div class="result-info-val">${esc(act.duration || '–')}</div></div>
+      <div class="result-info-item"><div class="result-info-label">🚗 Reistijd</div><div class="result-info-val">${esc(act.travel_time || '–')}</div></div>
+    </div>
+    <div class="day-selector-label">Inplannen op dag:</div>
+    <div class="day-selector" id="result-day-selector">
+      ${daysArray().map(d => `<button class="day-btn" data-day="${d.n}" onclick="selectDay(${d.n})">Dag ${d.n}<br><span style="font-size:10px;opacity:.7">${esc(d.date)}</span></button>`).join('')}
+      <button class="day-btn wishlist selected" data-day="wishlist" onclick="selectDay(null)">⭐ Wishlist</button>
+    </div>
+    <div class="time-input-row" id="time-row" style="display:none">
+      <span class="time-input-label">⏰ Tijdstip:</span>
+      <input type="time" class="time-input" id="result-time" value="10:00">
+    </div>
+    <button class="save-btn" onclick="saveActivity()">✅ Opslaan in planner</button>
+    <div style="height:8px"></div>
+  `;
+}
+
+function selectDay(day) {
+  currentAddResult.day = day;
+  document.querySelectorAll('#result-day-selector .day-btn').forEach(btn => {
+    const d = btn.dataset.day;
+    const active = (day === null && d === 'wishlist') || (day !== null && parseInt(d) === day);
+    btn.classList.toggle('selected', active);
+  });
+  $('time-row').style.display = day !== null ? 'flex' : 'none';
+}
+
+function activityDocFromResult(act) {
+  return {
+    url: act.url || '',
+    name: act.name,
+    category: act.category,
+    area: act.area,
+    price_label: act.price_label,
+    price_value: act.price_value || 0,
+    is_free: !!act.is_free,
+    needs_reservation: !!act.needs_reservation,
+    opening_hours: act.opening_hours || '',
+    duration: act.duration || '',
+    travel_time: act.travel_time || '',
+    description: act.description || '',
+    lat: act.lat || 0,
+    lng: act.lng || 0,
+    day: act.day != null ? act.day : null,
+    time: act.time || '10:00',
+    addedBy: currentUser.uid,
+    addedByName: userName(),
+    added_at: Date.now(),
+  };
+}
+
+async function bumpActivityCount(delta) {
+  try {
+    await db.collection('trips').doc(currentTrip.id).update({
+      activityCount: firebase.firestore.FieldValue.increment(delta),
+    });
+  } catch(e) {}
+}
+
+async function saveActivity() {
+  if (!currentAddResult || !currentTrip) return;
+  const timeEl = $('result-time');
+  if (timeEl) currentAddResult.time = timeEl.value;
+  try {
+    await db.collection('trips').doc(currentTrip.id).collection('activities').add(activityDocFromResult(currentAddResult));
+    await bumpActivityCount(1);
+    currentAddResult = null;
+    closeSheet('add-overlay');
+    showToast('✅ Activiteit opgeslagen!');
+  } catch(e) {
+    showToast('Opslaan mislukt: ' + e.message);
   }
 }
 
-function copyCode(code) {
-  navigator.clipboard.writeText(code).then(() => showMessage(`Code ${code} gekopieerd!`, 'success'));
+function renderError(title, msg) {
+  $('add-sheet-title').textContent = 'Niet gelukt';
+  $('add-sheet-body').innerHTML = `
+    <div class="error-state">
+      <div class="error-icon">⚠️</div>
+      <div class="error-title">${esc(title)}</div>
+      <div class="error-msg">${esc(msg)}</div>
+    </div>
+    <button class="analyze-btn" onclick="renderAddInput();document.getElementById('add-sheet-title').textContent='Activiteit toevoegen'">← Opnieuw proberen</button>
+    <div style="height:8px"></div>`;
 }
 
-function showMessage(msg, type) {
-  const el = document.getElementById('auth-message');
-  if (el) { el.innerHTML = `<div class="${type}" style="text-align:center">${msg}</div>`; setTimeout(() => el.innerHTML = '', 3000); }
+// ═══════════════════════════════════════════════════════════════
+// BATCH / COLLECTION FLOW
+// ═══════════════════════════════════════════════════════════════
+async function startMultiUrlAnalyze(urls) {
+  const videos = urls.map((u, i) => ({ videoUrl: u, title: '', desc: '', author: '', id: String(i) }));
+  $('add-sheet-title').textContent = `${urls.length} video's analyseren`;
+  batchResults = []; batchSelected = new Set();
+  await runBatchAnalyze(null, videos);
 }
 
-function showModalMessage(msg, type) {
-  document.getElementById('modal-message').innerHTML = `<div class="${type}">${msg}</div>`;
+async function startCollectionAnalyze(collectionUrl) {
+  $('add-sheet-title').textContent = 'Collectie laden...';
+  $('add-sheet-body').innerHTML = `
+    <div class="parsing-state"><div class="spinner"></div>
+      <div class="parsing-steps"><div class="parsing-step active"><span class="step-icon">⏳</span> TikTok collectie ophalen</div></div>
+    </div>`;
+  const videos = await fetchCollectionVideos(collectionUrl);
+  if (!videos || videos.length === 0) {
+    $('add-sheet-title').textContent = 'Collectie niet geladen';
+    $('add-sheet-body').innerHTML = `
+      <div class="error-state" style="margin-bottom:14px">
+        <div class="error-icon">📋</div>
+        <div class="error-title">Collectie-API werkt niet</div>
+        <div class="error-msg">Kopieer de losse video-links uit je collectie en plak ze hieronder.</div>
+      </div>
+      <div style="margin-bottom:10px"><textarea class="url-textarea" id="tiktok-url" style="min-height:110px" placeholder="https://www.tiktok.com/@user/video/123&#10;..." autocomplete="off" spellcheck="false"></textarea></div>
+      <button class="analyze-btn" onclick="startAnalyze()">Analyseer links</button><div style="height:8px"></div>`;
+    return;
+  }
+  $('add-sheet-title').textContent = `${videos.length} video's analyseren`;
+  batchResults = []; batchSelected = new Set();
+  await runBatchAnalyze(collectionUrl, videos);
 }
 
-// Check for TikTok share intent
-async function handleShareIntent() {
-  const params = new URLSearchParams(window.location.search);
-  const sharedUrl = params.get('url');
-  const sharedTitle = params.get('title');
-  const sharedText = params.get('text');
-
-  if (sharedUrl && sharedUrl.includes('tiktok')) {
-    // Auto-fill the activity modal met TikTok URL
-    setTimeout(() => {
-      if (currentTrip) {
-        document.getElementById('activity-url').value = sharedUrl + (sharedTitle ? ' ' + sharedTitle : '');
-        showAddActivityModal();
+async function runBatchAnalyze(sourceUrl, videos) {
+  renderBatchProgress(videos);
+  for (let i = 0; i < videos.length; i++) {
+    const v = videos[i];
+    updateBatchProgress(i, videos.length, v.title || `Video ${i + 1}`);
+    try {
+      const parsed = parseGroqJson(await callGroq(buildPrompt(v.videoUrl || sourceUrl || '', v.title, v.desc, v.author)));
+      if (parsed.error) {
+        batchResults.push({ status: 'skipped', reason: parsed.message || 'Niet relevant', video: v });
+        markBatchItem(i, 'skipped', v.title || `Video ${i + 1}`); continue;
       }
-    }, 500);
+      const norm = normalizeParsed(parsed);
+      if (!norm.lat || !norm.lng) { const g = await geocode(norm.area, currentTrip?.destination); norm.lat = g.lat; norm.lng = g.lng; }
+      const act = { id: `batch_${Date.now()}_${i}`, url: v.videoUrl || sourceUrl || '', ...norm, day: null, time: '10:00' };
+      batchResults.push({ status: 'found', act });
+      batchSelected.add(act.id);
+      markBatchItem(i, 'done', norm.name);
+    } catch(e) {
+      batchResults.push({ status: 'skipped', reason: e.message, video: v });
+      markBatchItem(i, 'skipped', v.title || `Video ${i + 1}`);
+    }
+    if (i < videos.length - 1) await new Promise(r => setTimeout(r, 400));
+  }
+  renderBatchFinalResults(videos.length);
+}
+
+function renderBatchProgress(videos) {
+  $('add-sheet-body').innerHTML = `
+    <div class="batch-progress-wrap">
+      <div class="batch-progress-header"><span class="batch-progress-label">Analyseren...</span><span class="batch-progress-count" id="batch-count">0 / ${videos.length}</span></div>
+      <div class="batch-progress-bar"><div class="batch-progress-fill" id="batch-fill" style="width:0%"></div></div>
+    </div>
+    <div class="batch-video-list" id="batch-video-list">
+      ${videos.map((v, i) => `<div class="batch-video-item" id="bvi-${i}"><span class="batch-video-icon">○</span><span class="batch-video-name">${esc(v.title || `Video ${i + 1}`)}</span></div>`).join('')}
+    </div>`;
+}
+function updateBatchProgress(index, total, label) {
+  const fillEl = $('batch-fill'), countEl = $('batch-count');
+  if (fillEl) fillEl.style.width = Math.round((index / total) * 100) + '%';
+  if (countEl) countEl.textContent = `${index} / ${total}`;
+  const item = $(`bvi-${index}`);
+  if (item) {
+    item.className = 'batch-video-item active';
+    item.querySelector('.batch-video-icon').textContent = '⏳';
+    item.querySelector('.batch-video-name').textContent = label;
+    item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+}
+function markBatchItem(index, status, label) {
+  const item = $(`bvi-${index}`);
+  if (!item) return;
+  item.className = `batch-video-item ${status}`;
+  item.querySelector('.batch-video-icon').textContent = status === 'done' ? '✅' : '⛔';
+  item.querySelector('.batch-video-name').textContent = label;
+  const countEl = $('batch-count');
+  if (countEl) { const total = countEl.textContent.split('/')[1]?.trim(); countEl.textContent = `${index + 1} / ${total}`; }
+  const fillEl = $('batch-fill');
+  if (fillEl) { const total = parseInt(countEl?.textContent.split('/')[1]) || batchResults.length; fillEl.style.width = Math.min(Math.round(((index + 1) / total) * 100), 99) + '%'; }
+}
+
+function renderBatchFinalResults(totalFetched) {
+  const found = batchResults.filter(r => r.status === 'found');
+  const skipped = batchResults.filter(r => r.status === 'skipped');
+  $('add-sheet-title').textContent = `${found.length} activiteit${found.length !== 1 ? 'en' : ''} gevonden`;
+  if (found.length === 0) {
+    $('add-sheet-body').innerHTML = `
+      <div class="error-state"><div class="error-icon">🤔</div><div class="error-title">Niets gevonden</div><div class="error-msg">Geen van de ${totalFetched} video's leverde een activiteit op.</div></div>
+      <button class="analyze-btn" onclick="renderAddInput();document.getElementById('add-sheet-title').textContent='Activiteit toevoegen'">← Opnieuw proberen</button>`;
+    return;
+  }
+  $('add-sheet-body').innerHTML = `
+    <div class="batch-results-header">
+      <span style="font-size:12px;font-weight:700;color:var(--navy)">${found.length} gevonden${skipped.length ? `, ${skipped.length} overgeslagen` : ''}</span>
+      <span class="batch-select-all" onclick="toggleSelectAll()">Alles selecteren</span>
+    </div>
+    <div class="batch-result-list" id="batch-result-list">
+      ${found.map(r => batchResultItemHTML(r.act)).join('')}
+      ${skipped.map(r => `<div class="batch-result-item skipped"><div class="batch-checkbox"></div><div class="batch-result-body"><div class="batch-result-name">⛔ ${esc(r.video?.title || 'Video')}</div><div class="batch-result-sub">${esc(r.reason || 'Overgeslagen')}</div></div></div>`).join('')}
+    </div>
+    <button class="batch-save-btn" id="batch-save-btn" onclick="saveBatchActivities()">✅ Sla <span id="batch-save-count">${found.length}</span> activiteit${found.length !== 1 ? 'en' : ''} op</button>
+    ${skipped.length ? `<div class="batch-skipped-note">⛔ ${skipped.length} video${skipped.length !== 1 ? "'s" : ''} overgeslagen</div>` : ''}
+    <div style="height:8px"></div>`;
+}
+function batchResultItemHTML(act) {
+  const cat = CAT_COLORS[act.category] || CAT_COLORS['Strand'];
+  const sel = batchSelected.has(act.id);
+  return `
+    <div class="batch-result-item ${sel ? 'selected' : ''}" id="bri-${act.id}" onclick="toggleBatchItem('${act.id}')">
+      <div class="batch-checkbox"></div>
+      <div class="batch-result-cat" style="background:${cat.a}20">${cat.emoji}</div>
+      <div class="batch-result-body"><div class="batch-result-name">${esc(act.name)}</div><div class="batch-result-sub">📍 ${esc(act.area)} · ${esc(act.category)}</div></div>
+      <div class="batch-result-price">${esc(act.price_label)}</div>
+    </div>`;
+}
+function toggleBatchItem(id) {
+  if (batchSelected.has(id)) { batchSelected.delete(id); $(`bri-${id}`)?.classList.remove('selected'); }
+  else { batchSelected.add(id); $(`bri-${id}`)?.classList.add('selected'); }
+  updateBatchSaveBtn();
+}
+function toggleSelectAll() {
+  const found = batchResults.filter(r => r.status === 'found');
+  const all = found.every(r => batchSelected.has(r.act.id));
+  found.forEach(r => {
+    if (all) { batchSelected.delete(r.act.id); $(`bri-${r.act.id}`)?.classList.remove('selected'); }
+    else { batchSelected.add(r.act.id); $(`bri-${r.act.id}`)?.classList.add('selected'); }
+  });
+  updateBatchSaveBtn();
+}
+function updateBatchSaveBtn() {
+  const n = batchSelected.size;
+  const btn = $('batch-save-btn'), countEl = $('batch-save-count');
+  if (btn) btn.disabled = n === 0;
+  if (countEl) countEl.textContent = n;
+}
+async function saveBatchActivities() {
+  const toSave = batchResults.filter(r => r.status === 'found' && batchSelected.has(r.act.id)).map(r => r.act);
+  if (toSave.length === 0 || !currentTrip) return;
+  const btn = $('batch-save-btn'); if (btn) btn.disabled = true;
+  try {
+    const col = db.collection('trips').doc(currentTrip.id).collection('activities');
+    const batch = db.batch();
+    toSave.forEach(act => batch.set(col.doc(), activityDocFromResult(act)));
+    await batch.commit();
+    await bumpActivityCount(toSave.length);
+    batchResults = []; batchSelected = new Set();
+    closeSheet('add-overlay');
+    showToast(`✅ ${toSave.length} activiteit${toSave.length !== 1 ? 'en' : ''} opgeslagen!`);
+  } catch(e) {
+    showToast('Opslaan mislukt: ' + e.message);
+    if (btn) btn.disabled = false;
   }
 }
 
-// Register Service Worker
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js').then(reg => {
-    console.log('SW registered:', reg);
-  }).catch(e => console.warn('SW registration failed:', e));
+// ═══════════════════════════════════════════════════════════════
+// DETAIL SHEET
+// ═══════════════════════════════════════════════════════════════
+function openDetail(id) {
+  const a = activities.find(x => x.id === id);
+  if (!a) return;
+  currentDetailId = id;
+  const cat = CAT_COLORS[a.category] || CAT_COLORS['Strand'];
+  $('detail-sheet-body').innerHTML = `
+    <div style="height:6px;background:linear-gradient(90deg,${cat.a},${cat.b});margin-bottom:16px"></div>
+    <div class="detail-header">
+      <div class="detail-cat-badge" style="background:${cat.a}20;color:${cat.a}">${cat.emoji} ${esc(a.category)}</div>
+      <div class="detail-name">${esc(a.name)}</div>
+      ${a.description ? `<div class="detail-blurb">${esc(a.description)}</div>` : ''}
+      ${a.addedByName ? `<div class="card-by" style="margin-top:8px">toegevoegd door ${esc(a.addedByName)}</div>` : ''}
+    </div>
+    <div class="detail-info-grid">
+      <div class="detail-info-card"><div class="detail-info-icon">📍</div><div class="detail-info-label">Locatie</div><div class="detail-info-val">${esc(a.area)}</div></div>
+      <div class="detail-info-card"><div class="detail-info-icon">💶</div><div class="detail-info-label">Prijs</div><div class="detail-info-val">${esc(a.price_label)}</div></div>
+      <div class="detail-info-card"><div class="detail-info-icon">🕐</div><div class="detail-info-label">Openingstijden</div><div class="detail-info-val">${esc(a.opening_hours || '–')}</div></div>
+      <div class="detail-info-card"><div class="detail-info-icon">⏱</div><div class="detail-info-label">Duur · Reistijd</div><div class="detail-info-val">${esc(a.duration || '–')} · ${esc(a.travel_time || '–')}</div></div>
+      ${a.needs_reservation ? `<div class="detail-info-card" style="grid-column:1/-1;background:rgba(239,143,76,.1)"><div class="detail-info-icon">📋</div><div class="detail-info-label">Reservering</div><div class="detail-info-val" style="color:var(--orange)">Reservering vereist</div></div>` : ''}
+    </div>
+    <div class="detail-day-section">
+      <div class="detail-day-label">Inplannen op dag:</div>
+      <div class="day-selector" id="detail-day-selector">
+        ${daysArray().map(d => `<button class="day-btn ${a.day === d.n ? 'selected' : ''}" data-day="${d.n}" onclick="updateActivityDay('${a.id}', ${d.n})">Dag ${d.n}<br><span style="font-size:10px;opacity:.7">${esc(d.date)}</span></button>`).join('')}
+        <button class="day-btn wishlist ${a.day == null ? 'selected' : ''}" onclick="updateActivityDay('${a.id}', null)">⭐ Wishlist</button>
+      </div>
+      ${a.day != null ? `<div class="time-input-row" style="margin-top:10px"><span class="time-input-label">⏰ Tijdstip:</span><input type="time" class="time-input" id="detail-time" value="${esc(a.time || '10:00')}" onchange="updateActivityTime('${a.id}', this.value)"></div>` : ''}
+    </div>
+    <div class="detail-actions">
+      ${a.url ? `<a href="${esc(a.url)}" target="_blank" rel="noopener" class="detail-action-btn btn-primary" style="display:flex;align-items:center;justify-content:center;gap:8px"><svg width="16" height="16" fill="white" viewBox="0 0 24 24"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.86a8.17 8.17 0 004.77 1.52V6.93a4.85 4.85 0 01-1-.24z"/></svg>Bekijk TikTok</a>` : ''}
+      <button class="detail-action-btn btn-danger" onclick="deleteActivity('${a.id}')">🗑️ Verwijder activiteit</button>
+    </div>
+    <div style="height:20px"></div>`;
+  openSheet('detail-overlay');
 }
 
-initSupabase();
-setTimeout(handleShareIntent, 1000);
+async function updateActivityDay(id, day) {
+  const a = activities.find(x => x.id === id);
+  if (!a || !currentTrip) return;
+  try {
+    await db.collection('trips').doc(currentTrip.id).collection('activities').doc(id).update({ day: day });
+    openDetail(id);
+    showToast(day != null ? `Dag ${day} gepland ✅` : 'Naar wishlist verplaatst');
+  } catch(e) { showToast('Bijwerken mislukt'); }
+}
+async function updateActivityTime(id, time) {
+  if (!currentTrip) return;
+  try { await db.collection('trips').doc(currentTrip.id).collection('activities').doc(id).update({ time }); } catch(e) {}
+}
+async function deleteActivity(id) {
+  if (!currentTrip) return;
+  if (!confirm('Weet je zeker dat je deze activiteit wilt verwijderen?')) return;
+  try {
+    await db.collection('trips').doc(currentTrip.id).collection('activities').doc(id).delete();
+    await bumpActivityCount(-1);
+    closeSheet('detail-overlay');
+    showToast('Activiteit verwijderd');
+  } catch(e) { showToast('Verwijderen mislukt'); }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MAP
+// ═══════════════════════════════════════════════════════════════
+function initMap() {
+  if (map || !currentTrip) return;
+  $('map-loading').style.display = 'flex';
+  const coords = activities.filter(a => a.lat && a.lng);
+  let center = [20, 0], zoom = 2;
+  if (coords.length) {
+    center = [coords.reduce((s, a) => s + a.lat, 0) / coords.length, coords.reduce((s, a) => s + a.lng, 0) / coords.length];
+    zoom = 11;
+  }
+  map = L.map('map', { center, zoom, zoomControl: true, attributionControl: false });
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+  $('map-loading').style.display = 'none';
+  renderLegend();
+  refreshMapMarkers(true);
+  setTimeout(() => map.invalidateSize(), 100);
+}
+
+function renderLegend() {
+  const cats = [...new Set(activities.map(a => a.category))].filter(c => CAT_COLORS[c]);
+  const el = $('map-legend');
+  if (!cats.length) { el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  el.innerHTML = cats.map(c => `<div class="legend-item"><div class="legend-dot" style="background:${CAT_COLORS[c].a}"></div>${CAT_COLORS[c].emoji} ${esc(c)}</div>`).join('');
+}
+
+function refreshMapMarkers(fit) {
+  if (!map) return;
+  Object.values(markers).forEach(m => map.removeLayer(m));
+  markers = {};
+  const pts = [];
+  activities.forEach(a => {
+    if (!a.lat || !a.lng) return;
+    const cat = CAT_COLORS[a.category] || CAT_COLORS['Strand'];
+    const icon = L.divIcon({
+      html: `<div style="background:${cat.a};width:32px;height:32px;border-radius:50% 50% 50% 0;display:flex;align-items:center;justify-content:center;font-size:14px;border:2.5px solid white;box-shadow:0 2px 8px rgba(0,0,0,.3);transform:rotate(-45deg)"><span style="transform:rotate(45deg)">${cat.emoji}</span></div>`,
+      className: '', iconSize: [32, 32], iconAnchor: [10, 32],
+    });
+    const m = L.marker([a.lat, a.lng], { icon, draggable: true }).addTo(map)
+      .bindPopup(`<div class="map-popup-title">${esc(a.name)}</div><div class="map-popup-sub">📍 ${esc(a.area)} · ${esc(a.price_label)}</div><div style="margin-top:6px"><button class="map-popup-btn" onclick="window.openDetail('${a.id}')">Details →</button></div>`);
+    m.on('dragend', async (e) => {
+      const pos = e.target.getLatLng();
+      try { await db.collection('trips').doc(currentTrip.id).collection('activities').doc(a.id).update({ lat: pos.lat, lng: pos.lng }); showToast('Locatie bijgewerkt 📍'); } catch(err) {}
+    });
+    markers[a.id] = m;
+    pts.push([a.lat, a.lng]);
+  });
+  renderLegend();
+  if (fit && pts.length > 1) map.fitBounds(pts, { padding: [40, 40], maxZoom: 13 });
+  else if (fit && pts.length === 1) map.setView(pts[0], 13);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TRIP SETTINGS SHEET
+// ═══════════════════════════════════════════════════════════════
+function openTripSettings() {
+  if (!currentTrip) return;
+  const t = currentTrip;
+  const isOwner = t.ownerId === currentUser.uid;
+  const members = Object.entries(t.members || {});
+  $('tripsettings-body').innerHTML = `
+    <div class="invite-box">
+      <div class="invite-label">Uitnodigingscode</div>
+      <div class="invite-code">${esc(t.inviteCode)}</div>
+      <button class="invite-copy" onclick="copyInvite('${esc(t.inviteCode)}')">📋 Kopiëren</button>
+    </div>
+    <div class="info-row"><span class="lbl">Naam</span><span class="val">${esc(t.name)}</span></div>
+    <div class="info-row"><span class="lbl">Bestemming</span><span class="val">${esc(t.destination)}</span></div>
+    <div class="info-row"><span class="lbl">Datums</span><span class="val">${esc(fmtRange(t))}</span></div>
+    <div class="info-row"><span class="lbl">Duur</span><span class="val">${t.days} dagen</span></div>
+    <div class="section-title" style="margin:18px 0 4px;font-size:14px">Leden <span class="section-count">${members.length}</span></div>
+    <div>${members.map(([uid, m]) => `
+      <div class="member-row">
+        <div class="member-av">${esc(initials(m.name))}</div>
+        <div><div class="member-name">${esc(m.name)}${uid === currentUser.uid ? ' (jij)' : ''}</div></div>
+        <span class="role-badge ${m.role === 'owner' ? 'role-owner' : 'role-member'}">${m.role === 'owner' ? 'Eigenaar' : 'Lid'}</span>
+      </div>`).join('')}</div>
+    <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--border)">
+      ${isOwner
+        ? `<button class="btn-block btn-danger" onclick="deleteTrip()">🗑️ Reis verwijderen</button>`
+        : `<button class="btn-block btn-danger" onclick="leaveTrip()">🚪 Reis verlaten</button>`}
+    </div>
+    <div style="height:20px"></div>`;
+  openSheet('tripsettings-overlay');
+}
+
+function copyInvite(code) {
+  navigator.clipboard.writeText(code).then(() => showToast('Code gekopieerd 📋'), () => showToast('Kopiëren mislukt'));
+}
+
+async function leaveTrip() {
+  if (!currentTrip) return;
+  if (!confirm('Weet je zeker dat je deze reis wilt verlaten?')) return;
+  try {
+    await db.collection('trips').doc(currentTrip.id).update({
+      [`members.${currentUser.uid}`]: firebase.firestore.FieldValue.delete(),
+    });
+    closeSheet('tripsettings-overlay');
+    showToast('Reis verlaten');
+    goHome();
+  } catch(e) { showToast('Mislukt: ' + e.message); }
+}
+
+async function deleteTrip() {
+  if (!currentTrip) return;
+  if (currentTrip.ownerId !== currentUser.uid) return;
+  if (!confirm('Weet je zeker dat je deze reis definitief wilt verwijderen? Dit kan niet ongedaan gemaakt worden.')) return;
+  try {
+    const tripRef = db.collection('trips').doc(currentTrip.id);
+    const acts = await tripRef.collection('activities').get();
+    const batch = db.batch();
+    acts.forEach(d => batch.delete(d.ref));
+    batch.delete(tripRef);
+    await batch.commit();
+    closeSheet('tripsettings-overlay');
+    showToast('Reis verwijderd');
+    goHome();
+  } catch(e) { showToast('Verwijderen mislukt: ' + e.message); }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SETTINGS / PROFILE
+// ═══════════════════════════════════════════════════════════════
+function openSettings() {
+  const key = groqKey || localStorage.getItem(GROQ_KEY) || '';
+  $('settings-api-key').value = key ? '•'.repeat(Math.min(key.length, 20)) : '';
+  openSheet('settings-overlay');
+}
+function saveApiKey() {
+  const val = $('settings-api-key').value.trim();
+  if (val && !val.startsWith('•')) {
+    groqKey = val; localStorage.setItem(GROQ_KEY, val); showToast('✅ API key opgeslagen');
+  } else if (!val) {
+    groqKey = ''; localStorage.removeItem(GROQ_KEY); showToast('API key verwijderd');
+  }
+  closeSheet('settings-overlay');
+}
+function openProfile() {
+  $('profile-body').innerHTML = `
+    <div style="text-align:center;margin-bottom:18px">
+      <div class="member-av" style="width:64px;height:64px;font-size:24px;margin:0 auto 10px">${esc(initials(userName()))}</div>
+      <div style="font-family:'Baloo 2';font-size:18px;font-weight:700;color:var(--navy)">${esc(userName())}</div>
+      <div style="font-size:13px;color:var(--text)">${esc(currentUser?.email || '')}</div>
+    </div>
+    <button class="btn-block btn-ghost" style="margin-bottom:10px" onclick="closeSheet('profile-overlay');openSettings()">⚙️ Instellingen & API key</button>
+    <button class="btn-block btn-danger" onclick="logout()">Uitloggen</button>
+    <div style="height:12px"></div>`;
+  openSheet('profile-overlay');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SHARE TARGET / PENDING INVITE FROM URL
+// ═══════════════════════════════════════════════════════════════
+function handleUrlParams() {
+  const params = new URLSearchParams(window.location.search);
+  const sharedUrl = params.get('url') || params.get('text') || params.get('title') || '';
+  if (sharedUrl && sharedUrl.includes('tiktok.com')) {
+    const found = extractTikTokUrls(sharedUrl);
+    if (found.length) localStorage.setItem(PENDING_SHARE_KEY, found.join('\n'));
+  }
+  const code = params.get('invite') || params.get('code');
+  if (code && /^[A-Za-z0-9]{6}$/.test(code)) localStorage.setItem(PENDING_INVITE_KEY, code.toUpperCase());
+  if (window.history.replaceState && (sharedUrl || code)) {
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
+}
+
+// After a trip is opened, if there is a pending shared TikTok URL, open the add sheet
+function consumePendingShare() {
+  const share = localStorage.getItem(PENDING_SHARE_KEY);
+  if (share && currentTrip) {
+    localStorage.removeItem(PENDING_SHARE_KEY);
+    setTimeout(() => openAddSheet(share), 600);
+  }
+}
+
+// Hook into openTrip via the activities listener: open add sheet once trip is ready
+const _openTrip = openTrip;
+openTrip = function(id) {
+  _openTrip(id);
+  // Wait a tick for currentTrip to populate from snapshot
+  const check = setInterval(() => {
+    if (currentTrip && currentTrip.id === id) { clearInterval(check); consumePendingShare(); }
+  }, 200);
+  setTimeout(() => clearInterval(check), 4000);
+};
+
+// ═══════════════════════════════════════════════════════════════
+// SERVICE WORKER
+// ═══════════════════════════════════════════════════════════════
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
+}
+
+// ═══════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════
+function init() {
+  $('rules-block').textContent = FIRESTORE_RULES;
+  updateClock();
+  setInterval(updateClock, 30000);
+  groqKey = localStorage.getItem(GROQ_KEY) || '';
+  handleUrlParams();
+  if (!initFirebase()) return;       // shows setup screen if no config
+  onAuth();                          // routes to auth/home based on state
+}
+
+window.openDetail = openDetail;
+init();
 </script>
 </body>
 </html>
