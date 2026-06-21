@@ -960,11 +960,19 @@ async function saveTime() {
 // ── Maps ──────────────────────────────────────────────
 function openMaps(area, lat, lng) {
   const isIOS = /iPhone|iPad/.test(navigator.userAgent);
-  const url = (lat && lng && lat !== 0)
-    ? (isIOS ? `maps://maps.apple.com/?ll=${lat},${lng}&q=${encodeURIComponent(area)}`
-               : `https://maps.google.com/?q=${lat},${lng}`)
-    : (isIOS ? `maps://maps.apple.com/?q=${encodeURIComponent(area)}`
-               : `https://maps.google.com/?q=${encodeURIComponent(area)}`);
+  const searchQuery = area
+    ? encodeURIComponent(`${area}, ${currentTrip?.destination || ''}`.trim().replace(/,\s*$/, ''))
+    : null;
+  let url;
+  if (isIOS) {
+    url = searchQuery
+      ? `maps://maps.apple.com/?q=${searchQuery}`
+      : `maps://maps.apple.com/?ll=${lat},${lng}`;
+  } else {
+    url = searchQuery
+      ? `https://maps.google.com/?q=${searchQuery}`
+      : `https://maps.google.com/?q=${lat},${lng}`;
+  }
   window.open(url, '_blank');
 }
 
