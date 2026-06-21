@@ -20,7 +20,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
   --blue: #2f7fc7; --navy: #11314a; --teal: #57c0d8; --green: #3aa08a;
-  --orange: #ef8f4c; --bg: #fbfafa; --border: #eef3f6; --text: #708496;
+  --orange: #ef8f4c; --bg: #f8fafc; --border: #eef3f6; --text: #708496;
   --dark: #1a2d3d; --white: #fff; --red: #e05c5c;
 }
 html, body { height: 100%; background: #e8eef3; font-family: 'Mulish', sans-serif; }
@@ -28,223 +28,366 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 input, textarea { font-family: inherit; }
 a { color: inherit; text-decoration: none; }
 
-.phone-wrap { display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
-.phone { width: 100%; max-width: 393px; height: 100vh; max-height: 852px; background: var(--bg); border-radius: 48px; overflow: hidden;
-  position: relative; box-shadow: 0 30px 80px rgba(0,0,0,.3), inset 0 0 0 1px rgba(255,255,255,.2);
-  display: flex; flex-direction: column; }
-@media (max-width: 500px) {
-  .phone-wrap { padding: 0; margin: 0; }
-  .phone { width: 100vw; height: 100dvh; border-radius: 0; max-width: 100vw; max-height: 100dvh; }
-  .header { padding: 12px 16px; }
-  .header-title { font-size: 18px; margin-bottom: 4px; }
-  .header-sub { font-size: 11px; }
-  .content { padding: 12px; }
-  .fab { width: 48px; height: 48px; font-size: 20px; bottom: 70px; right: 16px; }
-}
+/* Auth wrapper */
+.auth-wrap { display: none; position: fixed; inset: 0; z-index: 200;
+  background: linear-gradient(160deg, #11314a 0%, #2f7fc7 50%, #57c0d8 100%);
+  justify-content: center; align-items: center; padding: 20px; overflow-y: auto; }
+.auth-wrap.active { display: flex; }
+.auth-card { background: white; border-radius: 24px; padding: 32px; width: 100%; max-width: 380px;
+  box-shadow: 0 24px 80px rgba(0,0,0,.3); }
+.auth-logo { display: block; width: 72px; height: 72px; margin: 0 auto 16px; }
+.auth-title { font-family: 'Baloo 2'; font-size: 30px; font-weight: 800; color: var(--navy);
+  text-align: center; margin-bottom: 6px; }
+.auth-sub { font-size: 14px; color: var(--text); text-align: center; margin-bottom: 24px; }
 
-/* Auth Screen */
-.container { display: flex; min-height: 100vh; justify-content: center; align-items: center; padding: 20px; }
-.screen { display: none; width: 100%; max-width: 400px; }
-.screen.active { display: block; }
-.card { background: white; border-radius: 20px; padding: 30px; box-shadow: 0 8px 32px rgba(0,0,0,0.1); }
-.title { font-family: 'Baloo 2'; font-size: 28px; font-weight: 800; color: var(--navy); margin-bottom: 20px; }
-.subtitle { font-size: 14px; color: var(--text); margin-bottom: 20px; }
-input { width: 100%; padding: 12px; border: 2px solid var(--border); border-radius: 10px; margin-bottom: 12px; font-size: 14px; }
+/* PIN screen */
+.pin-dots { display: flex; gap: 14px; justify-content: center; margin: 24px 0; }
+.pin-dot { width: 18px; height: 18px; border-radius: 50%; background: var(--border); transition: all .2s; }
+.pin-dot.filled { background: var(--blue); transform: scale(1.1); }
+.pin-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; max-width: 260px; margin: 0 auto; }
+.pin-btn { background: var(--bg); border: 1.5px solid var(--border); border-radius: 14px;
+  font-size: 22px; font-weight: 700; color: var(--navy); padding: 18px;
+  transition: all .15s; -webkit-tap-highlight-color: transparent; }
+.pin-btn:active { background: var(--blue); color: white; transform: scale(.93); }
+
+/* Inputs */
+input { width: 100%; padding: 13px 14px; border: 2px solid var(--border); border-radius: 12px;
+  margin-bottom: 12px; font-size: 14px; transition: border-color .2s; }
 input:focus { outline: none; border-color: var(--blue); }
-textarea { width: 100%; padding: 12px; border: 2px solid var(--border); border-radius: 10px; margin-bottom: 12px; font-size: 13px; min-height: 80px; }
+textarea { width: 100%; padding: 13px 14px; border: 2px solid var(--border); border-radius: 12px;
+  margin-bottom: 12px; font-size: 13px; min-height: 80px; font-family: inherit; resize: vertical; }
 textarea:focus { outline: none; border-color: var(--blue); }
-.btn { width: 100%; padding: 14px; border-radius: 10px; font-weight: 700; font-size: 15px; cursor: pointer; transition: opacity .2s; }
+select { width: 100%; padding: 13px 14px; border: 2px solid var(--border); border-radius: 12px;
+  margin-bottom: 12px; font-size: 14px; font-family: inherit; background: white;
+  appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23708496' stroke-width='2' fill='none'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 14px center; }
+select:focus { outline: none; border-color: var(--blue); }
+
+.btn { width: 100%; padding: 14px; border-radius: 12px; font-weight: 700; font-size: 15px;
+  cursor: pointer; transition: all .2s; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.btn:active:not(:disabled) { opacity: 0.8; }
-.btn-primary { background: linear-gradient(135deg, var(--blue), var(--teal)); color: white; }
+.btn:active:not(:disabled) { opacity: 0.8; transform: scale(.98); }
+.btn-primary { background: linear-gradient(135deg, var(--blue), var(--teal)); color: white;
+  box-shadow: 0 4px 16px rgba(47,127,199,.35); }
 .btn-secondary { background: var(--border); color: var(--text); }
-.error { color: var(--red); font-size: 12px; margin-bottom: 12px; padding: 10px; background: rgba(224,92,92,.08); border-radius: 8px; }
-.success { color: var(--green); font-size: 12px; margin-bottom: 12px; padding: 10px; background: rgba(58,160,138,.08); border-radius: 8px; }
-.divider { text-align: center; color: var(--text); margin: 15px 0; font-size: 12px; }
-.spinner { display: inline-block; width: 30px; height: 30px; border: 3px solid var(--border); border-top-color: var(--blue); border-radius: 50%; animation: spin 1s linear infinite; }
+.btn-danger { background: rgba(224,92,92,.1); color: var(--red); }
+.btn-sm { padding: 8px 14px; font-size: 12px; width: auto; border-radius: 8px; }
+
+.error { color: var(--red); font-size: 12px; margin-bottom: 12px; padding: 10px 12px;
+  background: rgba(224,92,92,.08); border-radius: 10px; }
+.success { color: var(--green); font-size: 12px; margin-bottom: 12px; padding: 10px 12px;
+  background: rgba(58,160,138,.08); border-radius: 10px; }
+.divider { text-align: center; color: var(--text); margin: 14px 0; font-size: 12px; }
+.spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid var(--border);
+  border-top-color: var(--blue); border-radius: 50%; animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* Planner UI */
-.header { background: var(--navy); color: white; padding: 16px 20px; flex-shrink: 0; }
-.header-title { font-family: 'Baloo 2'; font-size: 20px; font-weight: 800; margin-bottom: 8px; }
-.header-sub { font-size: 12px; opacity: 0.8; }
-.tabs { display: flex; background: var(--navy); border-top: 1px solid rgba(255,255,255,.1); flex-shrink: 0; }
-.tab { flex: 1; padding: 12px; text-align: center; color: rgba(255,255,255,.5); font-size: 12px; font-weight: 700; cursor: pointer; transition: color .2s; border-bottom: 2px solid transparent; }
+/* Phone shell */
+.phone-wrap { display: none; position: fixed; inset: 0; z-index: 100;
+  justify-content: center; align-items: center; background: #e8eef3; }
+.phone-wrap.active { display: flex; }
+.phone { width: 100%; max-width: 393px; height: 100vh; max-height: 852px; background: var(--bg);
+  border-radius: 48px; overflow: hidden; position: relative;
+  box-shadow: 0 30px 80px rgba(0,0,0,.3), inset 0 0 0 1px rgba(255,255,255,.2);
+  display: flex; flex-direction: column; }
+
+@media (max-width: 500px) {
+  .phone-wrap { background: var(--bg); }
+  .phone { max-width: 100vw; height: 100dvh; max-height: 100dvh; border-radius: 0; box-shadow: none; }
+  .auth-wrap { padding: 16px; }
+}
+
+/* Header */
+.header { background: linear-gradient(135deg, var(--navy), #1e4d6b); color: white;
+  padding: 16px 20px 12px; flex-shrink: 0; }
+.header-top { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.header-logo { width: 28px; height: 28px; }
+.header-title { font-family: 'Baloo 2'; font-size: 20px; font-weight: 800; flex: 1; }
+.header-back { background: rgba(255,255,255,.15); border-radius: 8px; padding: 4px 10px;
+  font-size: 12px; color: white; cursor: pointer; }
+.header-sub { font-size: 11px; opacity: 0.7; }
+
+/* Tabs */
+.tabs { display: flex; background: var(--navy); flex-shrink: 0; }
+.tab { flex: 1; padding: 11px 4px; text-align: center; color: rgba(255,255,255,.45);
+  font-size: 11px; font-weight: 700; cursor: pointer; transition: all .2s;
+  border-bottom: 2px solid transparent; }
 .tab.active { color: var(--teal); border-bottom-color: var(--teal); }
-.content { flex: 1; overflow-y: auto; padding: 16px; }
-.section-title { font-family: 'Baloo 2'; font-size: 16px; font-weight: 700; color: var(--navy); margin-bottom: 12px; margin-top: 16px; }
+
+/* Content */
+.content { flex: 1; overflow-y: auto; padding: 14px; padding-bottom: 70px; }
+.section-title { font-family: 'Baloo 2'; font-size: 15px; font-weight: 700; color: var(--navy);
+  margin-bottom: 10px; margin-top: 14px; }
 .section-title:first-child { margin-top: 0; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
 
-.day-card { background: white; border-radius: 14px; padding: 12px; border: 1.5px solid var(--border); margin-bottom: 10px; }
-.day-header { font-weight: 700; color: var(--navy); margin-bottom: 8px; }
-.day-date { font-size: 12px; color: var(--text); margin-bottom: 8px; }
-.activity-item { background: var(--border); border-radius: 10px; padding: 8px; margin-bottom: 6px; font-size: 12px; color: var(--navy); }
+/* Planning */
+.day-card { background: white; border-radius: 14px; padding: 14px; border: 1.5px solid var(--border);
+  margin-bottom: 10px; }
+.day-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.day-label { font-weight: 700; color: var(--navy); font-size: 13px; }
+.day-date-sub { font-size: 11px; color: var(--text); margin-bottom: 10px; }
+.timeline-item { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0;
+  border-bottom: 1px solid var(--border); }
+.timeline-item:last-child { border-bottom: none; padding-bottom: 0; }
+.timeline-time { font-size: 11px; font-weight: 700; color: var(--blue); min-width: 38px; cursor: pointer; }
+.timeline-time:hover { text-decoration: underline; }
+.timeline-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--teal);
+  margin-top: 3px; flex-shrink: 0; }
+.timeline-name { font-size: 12px; color: var(--navy); font-weight: 600; flex: 1; }
+.timeline-del { font-size: 14px; color: var(--text); cursor: pointer; padding: 0 4px; opacity: .5; }
+.timeline-del:hover { opacity: 1; color: var(--red); }
+.day-empty { font-size: 12px; color: var(--text); opacity: .6; text-align: center; padding: 8px 0; }
 
-.activity-card { background: white; border-radius: 14px; padding: 14px; border: 1.5px solid var(--border); margin-bottom: 10px; }
-.activity-name { font-weight: 700; color: var(--navy); margin-bottom: 6px; }
-.activity-meta { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
-.activity-tag { background: var(--border); color: var(--text); padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; }
-.activity-location { color: var(--blue); font-size: 11px; font-weight: 700; cursor: pointer; text-decoration: underline; margin-top: 6px; }
-.activity-desc { font-size: 12px; color: var(--text); margin-top: 6px; line-height: 1.4; }
+/* Activity cards */
+.activity-card { background: white; border-radius: 14px; padding: 14px;
+  border: 1.5px solid var(--border); margin-bottom: 10px; }
+.activity-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.activity-name { font-weight: 700; color: var(--navy); margin-bottom: 6px; font-size: 14px; flex: 1; }
+.activity-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.activity-meta { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.activity-tag { background: var(--border); color: var(--text); padding: 3px 8px;
+  border-radius: 6px; font-size: 11px; font-weight: 600; }
+.activity-tag.cat { background: rgba(47,127,199,.1); color: var(--blue); }
+.activity-tag.day-tag { background: rgba(87,192,216,.15); color: #2a8a9f; }
+.activity-location { color: var(--blue); font-size: 11px; font-weight: 700; cursor: pointer;
+  text-decoration: underline; margin-top: 6px; display: inline-block; }
+.activity-desc { font-size: 12px; color: var(--text); margin-top: 6px; line-height: 1.5; }
+.tiktok-link { font-size: 11px; color: var(--text); margin-top: 6px; opacity: .7; cursor: pointer; }
 
-.fab { position: fixed; bottom: 80px; right: 24px; width: 56px; height: 56px; border-radius: 16px;
+/* Map */
+#map-container { height: calc(100vh - 220px); border-radius: 12px; overflow: hidden; }
+
+/* FAB */
+.fab { position: absolute; bottom: 72px; right: 16px; width: 52px; height: 52px; border-radius: 15px;
   background: linear-gradient(135deg, var(--blue), var(--teal)); color: white; display: flex;
-  align-items: center; justify-content: center; font-size: 24px; cursor: pointer;
-  box-shadow: 0 4px 20px rgba(47,127,199,.4); z-index: 10; transition: transform .2s; }
-.fab:active { transform: scale(.92); }
+  align-items: center; justify-content: center; font-size: 22px; cursor: pointer;
+  box-shadow: 0 4px 20px rgba(47,127,199,.45); z-index: 10; transition: transform .2s; }
+.fab:active { transform: scale(.9); }
 
-.modal-overlay { position: fixed; inset: 0; background: rgba(17,49,74,.5); z-index: 100;
-  display: none; align-items: center; justify-content: center; backdrop-filter: blur(3px); }
-.modal-overlay.active { display: flex; }
-.modal { background: white; border-radius: 20px; padding: 24px; max-width: 90%; max-height: 90vh;
-  overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,.2); }
-.modal-title { font-family: 'Baloo 2'; font-size: 20px; font-weight: 800; color: var(--navy); margin-bottom: 16px; }
-.modal-close { position: absolute; top: 16px; right: 16px; width: 32px; height: 32px; border-radius: 10px;
-  background: var(--border); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; }
-
-.bottom-nav { position: absolute; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid var(--border);
-  display: flex; justify-content: space-around; padding: 8px 0; }
-.nav-item { flex: 1; text-align: center; padding: 8px; color: var(--text); font-size: 11px; font-weight: 700; cursor: pointer; }
+/* Bottom nav */
+.bottom-nav { position: absolute; bottom: 0; left: 0; right: 0; background: white;
+  border-top: 1px solid var(--border); display: flex; justify-content: space-around;
+  padding: 8px 0 10px; }
+.nav-item { flex: 1; text-align: center; padding: 6px; color: var(--text);
+  font-size: 10px; font-weight: 700; cursor: pointer; }
 .nav-item.active { color: var(--blue); }
+
+/* Modal */
+.modal-overlay { position: fixed; inset: 0; background: rgba(17,49,74,.5); z-index: 500;
+  display: none; align-items: flex-end; justify-content: center;
+  backdrop-filter: blur(4px); padding: 20px; }
+.modal-overlay.active { display: flex; }
+.modal { background: white; border-radius: 24px; padding: 24px; width: 100%; max-width: 420px;
+  max-height: 90vh; overflow-y: auto; box-shadow: 0 -8px 40px rgba(0,0,0,.2);
+  position: relative; }
+.modal-title { font-family: 'Baloo 2'; font-size: 20px; font-weight: 800; color: var(--navy);
+  margin-bottom: 16px; padding-right: 32px; }
+.modal-close { position: absolute; top: 20px; right: 20px; width: 30px; height: 30px;
+  border-radius: 8px; background: var(--border); cursor: pointer; display: flex;
+  align-items: center; justify-content: center; font-size: 16px; color: var(--text); }
+
+/* Trip list */
+.trip-item { padding: 14px; border: 1.5px solid var(--border); border-radius: 14px;
+  margin-bottom: 10px; cursor: pointer; transition: all .2s; }
+.trip-item:hover, .trip-item:active { border-color: var(--blue); background: rgba(47,127,199,.04); }
+.trip-name { font-weight: 700; color: var(--navy); margin-bottom: 3px; }
+.trip-meta { font-size: 12px; color: var(--text); }
+
+/* Group */
+.code-box { font-family: monospace; font-size: 22px; font-weight: 800; color: var(--navy);
+  text-align: center; padding: 14px; background: var(--border); border-radius: 12px;
+  letter-spacing: 4px; margin: 10px 0; }
+.member-item { display: flex; align-items: center; gap: 10px; padding: 10px;
+  background: white; border-radius: 10px; margin-bottom: 6px; border: 1.5px solid var(--border); }
+.member-avatar { width: 32px; height: 32px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--blue), var(--teal));
+  display: flex; align-items: center; justify-content: center; color: white; font-size: 13px; font-weight: 700; }
+.member-name { font-size: 13px; color: var(--navy); font-weight: 600; }
+
+/* Notification toast */
+.toast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%);
+  background: var(--navy); color: white; padding: 10px 18px; border-radius: 20px;
+  font-size: 13px; font-weight: 600; z-index: 9999; opacity: 0; transition: opacity .3s;
+  pointer-events: none; white-space: nowrap; }
+.toast.show { opacity: 1; }
 </style>
 </head>
 <body>
+<div id="toast" class="toast"></div>
 
 <!-- PIN Screen -->
-<div id="pin-screen" class="screen">
-  <div class="container">
-    <div class="card" style="text-align:center">
-      <img src="/icon.svg" style="width:64px;height:64px;margin:0 auto 12px;display:block">
-      <div class="title">Welkom terug</div>
-      <div class="subtitle" id="pin-subtitle">Voer je 4-cijferige PIN in</div>
-      <div id="pin-message"></div>
-      <div style="display:flex;gap:12px;justify-content:center;margin:20px 0">
-        <div id="pin-dot-0" style="width:16px;height:16px;border-radius:50%;background:var(--border);transition:background .2s"></div>
-        <div id="pin-dot-1" style="width:16px;height:16px;border-radius:50%;background:var(--border);transition:background .2s"></div>
-        <div id="pin-dot-2" style="width:16px;height:16px;border-radius:50%;background:var(--border);transition:background .2s"></div>
-        <div id="pin-dot-3" style="width:16px;height:16px;border-radius:50%;background:var(--border);transition:background .2s"></div>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:240px;margin:0 auto">
-        <button class="btn btn-secondary" onclick="pinInput('1')" style="font-size:22px;padding:16px">1</button>
-        <button class="btn btn-secondary" onclick="pinInput('2')" style="font-size:22px;padding:16px">2</button>
-        <button class="btn btn-secondary" onclick="pinInput('3')" style="font-size:22px;padding:16px">3</button>
-        <button class="btn btn-secondary" onclick="pinInput('4')" style="font-size:22px;padding:16px">4</button>
-        <button class="btn btn-secondary" onclick="pinInput('5')" style="font-size:22px;padding:16px">5</button>
-        <button class="btn btn-secondary" onclick="pinInput('6')" style="font-size:22px;padding:16px">6</button>
-        <button class="btn btn-secondary" onclick="pinInput('7')" style="font-size:22px;padding:16px">7</button>
-        <button class="btn btn-secondary" onclick="pinInput('8')" style="font-size:22px;padding:16px">8</button>
-        <button class="btn btn-secondary" onclick="pinInput('9')" style="font-size:22px;padding:16px">9</button>
-        <button class="btn btn-secondary" onclick="pinClear()" style="font-size:16px;padding:16px">✕</button>
-        <button class="btn btn-secondary" onclick="pinInput('0')" style="font-size:22px;padding:16px">0</button>
-        <button class="btn btn-secondary" onclick="pinDelete()" style="font-size:18px;padding:16px">⌫</button>
-      </div>
-      <button class="btn btn-secondary" onclick="showAuthScreen(true)" style="margin-top:20px;font-size:12px;padding:10px">Inloggen met email</button>
+<div id="pin-screen" class="auth-wrap">
+  <div class="auth-card">
+    <img src="/icon.svg" class="auth-logo">
+    <div class="auth-title">Welkom terug</div>
+    <div class="auth-sub" id="pin-subtitle">Voer je 4-cijferige PIN in</div>
+    <div id="pin-message"></div>
+    <div class="pin-dots">
+      <div class="pin-dot" id="pin-dot-0"></div>
+      <div class="pin-dot" id="pin-dot-1"></div>
+      <div class="pin-dot" id="pin-dot-2"></div>
+      <div class="pin-dot" id="pin-dot-3"></div>
+    </div>
+    <div class="pin-grid">
+      <button class="pin-btn" onclick="pinInput('1')">1</button>
+      <button class="pin-btn" onclick="pinInput('2')">2</button>
+      <button class="pin-btn" onclick="pinInput('3')">3</button>
+      <button class="pin-btn" onclick="pinInput('4')">4</button>
+      <button class="pin-btn" onclick="pinInput('5')">5</button>
+      <button class="pin-btn" onclick="pinInput('6')">6</button>
+      <button class="pin-btn" onclick="pinInput('7')">7</button>
+      <button class="pin-btn" onclick="pinInput('8')">8</button>
+      <button class="pin-btn" onclick="pinInput('9')">9</button>
+      <button class="pin-btn" onclick="pinClear()" style="font-size:16px">✕</button>
+      <button class="pin-btn" onclick="pinInput('0')">0</button>
+      <button class="pin-btn" onclick="pinDelete()" style="font-size:18px">⌫</button>
+    </div>
+    <div style="margin-top:20px">
+      <button class="btn btn-secondary" onclick="showAuthScreen(true)" style="font-size:12px;padding:10px">Inloggen met email</button>
     </div>
   </div>
 </div>
 
 <!-- Auth Screen -->
-<div id="auth-screen" class="screen active">
-  <div class="container">
-    <div class="card">
-      <div class="title">Triply</div>
-      <div class="subtitle">Plan je reis samen met vrienden</div>
-      <div id="auth-message"></div>
-      <input type="email" id="auth-email" placeholder="Email" autocomplete="email">
-      <input type="password" id="auth-password" placeholder="Wachtwoord" autocomplete="current-password">
-      <button id="btn-submit" class="btn btn-primary" onclick="handleAuth()">Inloggen</button>
-      <div class="divider">of</div>
-      <button id="btn-toggle" class="btn btn-secondary" onclick="toggleSignup()">Nieuw account</button>
-    </div>
+<div id="auth-screen" class="auth-wrap active">
+  <div class="auth-card">
+    <img src="/icon.svg" class="auth-logo">
+    <div class="auth-title">Triply</div>
+    <div class="auth-sub">Plan je reis samen met vrienden</div>
+    <div id="auth-message"></div>
+    <input type="email" id="auth-email" placeholder="Email" autocomplete="email">
+    <input type="password" id="auth-password" placeholder="Wachtwoord" autocomplete="current-password">
+    <button id="btn-submit" class="btn btn-primary" onclick="handleAuth()">Inloggen</button>
+    <div class="divider">of</div>
+    <button id="btn-toggle" class="btn btn-secondary" onclick="toggleSignup()">Nieuw account</button>
   </div>
 </div>
 
 <!-- Trip Selector Screen -->
-<div id="trip-screen" class="screen">
-  <div class="container">
-    <div class="card">
-      <div class="title">Mijn reizen</div>
-      <div id="trips-list"></div>
-      <button class="btn btn-primary" onclick="showCreateTrip()">+ Nieuwe reis</button>
-      <button class="btn btn-secondary" onclick="handleLogout()" style="margin-top:10px;">Logout</button>
+<div id="trip-screen" class="auth-wrap">
+  <div class="auth-card">
+    <img src="/icon.svg" class="auth-logo">
+    <div class="auth-title">Mijn reizen</div>
+    <div id="trip-message"></div>
+    <div id="trips-list"></div>
+    <button class="btn btn-primary" onclick="showCreateTrip()" style="margin-top:8px">+ Nieuwe reis</button>
+    <div style="margin-top:10px">
+      <button class="btn btn-secondary" style="font-size:12px;padding:10px" onclick="handleLogout()">Uitloggen</button>
     </div>
   </div>
 </div>
 
 <!-- Create Trip Screen -->
-<div id="create-trip-screen" class="screen">
-  <div class="container">
-    <div class="card">
-      <div class="title">Nieuwe reis</div>
-      <input type="text" id="trip-name" placeholder="Naam (bijv. Vakantie 2026)">
-      <input type="text" id="trip-destination" placeholder="Bestemming (bijv. Rhodos)">
-      <input type="date" id="trip-start">
-      <input type="date" id="trip-end">
-      <input type="text" id="trip-hotel" placeholder="Hotel naam">
-      <button class="btn btn-primary" onclick="createTrip()">Reis aanmaken</button>
-      <button class="btn btn-secondary" onclick="showTripSelector()" style="margin-top:10px;">Terug</button>
+<div id="create-trip-screen" class="auth-wrap">
+  <div class="auth-card">
+    <div class="auth-title">✈️ Nieuwe reis</div>
+    <input type="text" id="trip-name" placeholder="Naam (bijv. Vakantie Rhodos 2026)">
+    <input type="text" id="trip-destination" placeholder="Bestemming (bijv. Rhodos, Griekenland)">
+    <input type="date" id="trip-start">
+    <input type="date" id="trip-end">
+    <input type="text" id="trip-hotel" placeholder="Hotel naam (optioneel)">
+    <button class="btn btn-primary" onclick="createTrip()">Reis aanmaken</button>
+    <div style="margin-top:10px">
+      <button class="btn btn-secondary" onclick="showTripSelector()">← Terug</button>
     </div>
   </div>
 </div>
 
 <!-- Planner Screen -->
-<div id="planner-screen" class="screen" style="display:flex;flex-direction:column !important;width:100%;max-width:100% !important;">
-  <div class="phone-wrap" style="min-height:auto;padding:0;margin:0">
-    <div class="phone">
-      <div class="header">
+<div id="planner-screen" class="phone-wrap">
+  <div class="phone">
+    <div class="header">
+      <div class="header-top">
+        <img src="/icon.svg" class="header-logo">
         <div class="header-title" id="trip-title">Trip</div>
-        <div class="header-sub" id="trip-dates"></div>
+        <div class="header-back" onclick="showTripSelector()">← Reizen</div>
       </div>
+      <div class="header-sub" id="trip-dates"></div>
+    </div>
 
-      <div class="tabs">
-        <div class="tab active" onclick="switchTab('planning')">📅 Planning</div>
-        <div class="tab" onclick="switchTab('activities')">📍 Activiteiten</div>
-        <div class="tab" onclick="switchTab('group')">👥 Groep</div>
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('planning', this)">📅 Planning</div>
+      <div class="tab" onclick="switchTab('activities', this)">📍 Activiteiten</div>
+      <div class="tab" onclick="switchTab('map', this)">🗺️ Kaart</div>
+      <div class="tab" onclick="switchTab('group', this)">👥 Groep</div>
+    </div>
+
+    <div class="content">
+      <div id="planning-tab" class="tab-content active">
+        <div id="planning-content"></div>
       </div>
-
-      <div class="content">
-        <!-- Planning Tab -->
-        <div id="planning-tab" class="tab-content active">
-          <div class="section-title">Dagplanning</div>
-          <div id="planning-content"></div>
-        </div>
-
-        <!-- Activities Tab -->
-        <div id="activities-tab" class="tab-content" style="display:none">
-          <div class="section-title">Alle activiteiten</div>
-          <div id="activities-content"></div>
-        </div>
-
-        <!-- Group Tab -->
-        <div id="group-tab" class="tab-content" style="display:none">
-          <div id="group-content"></div>
-        </div>
+      <div id="activities-tab" class="tab-content">
+        <div id="activities-content"></div>
       </div>
-
-      <button class="fab" onclick="showAddActivityModal()">➕</button>
-
-      <div class="bottom-nav">
-        <div class="nav-item active" onclick="showTripSelector()">← Terug</div>
-        <div class="nav-item" onclick="handleLogout()">🚪 Logout</div>
+      <div id="map-tab" class="tab-content">
+        <div id="map-container"></div>
       </div>
+      <div id="group-tab" class="tab-content">
+        <div id="group-content"></div>
+      </div>
+    </div>
+
+    <button class="fab" onclick="showAddActivityModal()">➕</button>
+
+    <div class="bottom-nav">
+      <div class="nav-item" onclick="handleLogout()">🚪 Uitloggen</div>
+      <div class="nav-item" id="realtime-indicator">🟢 Live</div>
+      <div class="nav-item" onclick="showAddActivityModal()">➕ Toevoegen</div>
     </div>
   </div>
 </div>
 
 <!-- Add Activity Modal -->
-<div id="add-modal" class="modal-overlay">
-  <div class="modal" onclick="event.stopPropagation()" style="position:relative">
+<div id="add-modal" class="modal-overlay" onclick="closeAddActivityModal()">
+  <div class="modal" onclick="event.stopPropagation()">
     <div class="modal-close" onclick="closeAddActivityModal()">✕</div>
-    <div class="modal-title">Voeg activiteit toe</div>
-    <textarea id="activity-url" placeholder="Plak hier een TikTok URL of beschrijving van de activiteit..." style="margin-bottom:12px"></textarea>
-    <div id="modal-message" style="margin-bottom:12px"></div>
+    <div class="modal-title">Activiteit toevoegen</div>
+    <textarea id="activity-url" placeholder="Plak een TikTok URL of beschrijf de activiteit..."></textarea>
+    <select id="activity-day">
+      <option value="">Wishlist (geen dag)</option>
+    </select>
+    <select id="activity-time-select">
+      <option value="09:00">09:00</option>
+      <option value="10:00" selected>10:00</option>
+      <option value="11:00">11:00</option>
+      <option value="12:00">12:00</option>
+      <option value="13:00">13:00</option>
+      <option value="14:00">14:00</option>
+      <option value="15:00">15:00</option>
+      <option value="16:00">16:00</option>
+      <option value="17:00">17:00</option>
+      <option value="18:00">18:00</option>
+      <option value="19:00">19:00</option>
+      <option value="20:00">20:00</option>
+      <option value="21:00">21:00</option>
+    </select>
+    <div id="modal-message" style="margin-bottom:8px"></div>
     <button id="add-btn" class="btn btn-primary" onclick="analyzeActivity()">🤖 AI analyseren</button>
-    <button class="btn btn-secondary" onclick="closeAddActivityModal()" style="margin-top:8px">Annuleren</button>
+    <div style="margin-top:8px">
+      <button class="btn btn-secondary" onclick="closeAddActivityModal()">Annuleren</button>
+    </div>
+  </div>
+</div>
+
+<!-- Time Edit Modal -->
+<div id="time-modal" class="modal-overlay" onclick="closeTimeModal()">
+  <div class="modal" onclick="event.stopPropagation()" style="max-width:300px">
+    <div class="modal-close" onclick="closeTimeModal()">✕</div>
+    <div class="modal-title">Tijdstip aanpassen</div>
+    <select id="time-select-modal">
+      <option>09:00</option><option>10:00</option><option>11:00</option>
+      <option>12:00</option><option>13:00</option><option>14:00</option>
+      <option>15:00</option><option>16:00</option><option>17:00</option>
+      <option>18:00</option><option>19:00</option><option>20:00</option>
+      <option>21:00</option>
+    </select>
+    <button class="btn btn-primary" onclick="saveTime()">Opslaan</button>
   </div>
 </div>
 
 <script>
-// Global state
 var _sb = null;
 var currentUser = null;
 var currentTrip = null;
@@ -252,83 +395,82 @@ var tripDays = [];
 var isSignup = false;
 var groqKey = '';
 var pinBuffer = '';
-var pinMode = 'check'; // 'check' or 'set'
+var pinMode = 'check';
+var editingActivityId = null;
+var leafletMap = null;
+var realtimeChannel = null;
 
+// ── Toast ──────────────────────────────────────────────
+function toast(msg, duration) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), duration || 2500);
+}
+
+// ── PIN ───────────────────────────────────────────────
 function pinInput(digit) {
   if (pinBuffer.length >= 4) return;
   pinBuffer += digit;
   updatePinDots();
   if (pinBuffer.length === 4) setTimeout(pinSubmit, 150);
 }
-
-function pinDelete() {
-  pinBuffer = pinBuffer.slice(0, -1);
-  updatePinDots();
-}
-
-function pinClear() {
-  pinBuffer = '';
-  updatePinDots();
-}
-
+function pinDelete() { pinBuffer = pinBuffer.slice(0, -1); updatePinDots(); }
+function pinClear() { pinBuffer = ''; updatePinDots(); }
 function updatePinDots() {
   for (let i = 0; i < 4; i++) {
-    document.getElementById('pin-dot-' + i).style.background =
-      i < pinBuffer.length ? 'var(--blue)' : 'var(--border)';
+    const dot = document.getElementById('pin-dot-' + i);
+    dot.classList.toggle('filled', i < pinBuffer.length);
   }
 }
-
 function pinSubmit() {
   const stored = localStorage.getItem('triply_pin');
   if (pinMode === 'set') {
     localStorage.setItem('triply_pin', pinBuffer);
-    localStorage.setItem('triply_pin_set', Date.now());
-    pinBuffer = '';
-    updatePinDots();
+    pinBuffer = ''; updatePinDots();
+    toast('PIN opgeslagen!');
     showTripSelector();
   } else {
     if (pinBuffer === stored) {
-      pinBuffer = '';
-      updatePinDots();
+      pinBuffer = ''; updatePinDots();
       showTripSelector();
     } else {
       document.getElementById('pin-message').innerHTML = '<div class="error">Verkeerde PIN, probeer opnieuw</div>';
-      pinBuffer = '';
-      updatePinDots();
+      pinBuffer = ''; updatePinDots();
     }
   }
 }
-
 function showPinScreen(mode) {
   pinMode = mode || 'check';
-  pinBuffer = '';
-  updatePinDots();
+  pinBuffer = ''; updatePinDots();
   document.getElementById('pin-message').innerHTML = '';
   document.getElementById('pin-subtitle').textContent =
-    mode === 'set' ? 'Kies een 4-cijferige PIN' : 'Voer je 4-cijferige PIN in';
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.getElementById('pin-screen').classList.add('active');
+    mode === 'set' ? 'Kies een 4-cijferige PIN' : 'Voer je PIN in';
+  showScreen('pin-screen');
 }
 
+// ── Screen management ─────────────────────────────────
+function showScreen(id) {
+  document.querySelectorAll('.auth-wrap').forEach(s => s.classList.remove('active'));
+  document.getElementById('planner-screen').classList.remove('active');
+  const el = document.getElementById(id);
+  if (el) el.classList.add('active');
+}
+
+// ── Init ──────────────────────────────────────────────
 async function initSupabase() {
   try {
     const r = await fetch('/api/config');
     const cfg = await r.json();
     if (!cfg.supabaseUrl || !cfg.supabaseKey) {
-      document.getElementById('auth-message').innerHTML = `
-        <div class="error" style="text-align:left;line-height:1.6">
-          ⚠️ <b>App niet geconfigureerd.</b><br>
-          Ga naar <b>vercel.com → vakantie-webapp → Settings</b> en voeg toe:<br><br>
-          SUPABASE_URL, SUPABASE_ANON_KEY, en GROQ_API_KEY
-        </div>`;
+      document.getElementById('auth-message').innerHTML =
+        '<div class="error">⚠️ App niet geconfigureerd. Voeg SUPABASE_URL, SUPABASE_ANON_KEY en GROQ_API_KEY toe in Vercel.</div>';
       return;
     }
     _sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey);
     groqKey = cfg.groqApiKey || '';
     await checkAuth();
-  } catch(e) {
-    console.error('Init failed:', e);
-  }
+  } catch(e) { console.error('Init failed:', e); }
 }
 
 async function checkAuth() {
@@ -342,33 +484,33 @@ async function checkAuth() {
   }
 }
 
+// ── Auth ──────────────────────────────────────────────
 async function handleAuth() {
   const email = document.getElementById('auth-email').value.trim();
   const password = document.getElementById('auth-password').value.trim();
-  if (!email || !password) { showMessage('Voer email en wachtwoord in', 'error'); return; }
-
+  if (!email || !password) { authMsg('Voer email en wachtwoord in', 'error'); return; }
   document.getElementById('btn-submit').disabled = true;
-
   try {
     if (isSignup) {
       const { data, error } = await _sb.auth.signUp({ email, password });
-      if (error) { showMessage(error.message, 'error'); return; }
+      if (error) { authMsg(error.message, 'error'); return; }
       if (data.session) {
         currentUser = data.user;
         await _sb.from('triply_users').upsert([{ id: currentUser.id, email }], { onConflict: 'id' });
-        showMessage('Account aangemaakt! 🎉', 'success');
+        toast('Account aangemaakt! 🎉');
         setTimeout(() => showTripSelector(), 800);
       } else {
-        showMessage('Check je e-mail voor bevestiging', 'success');
+        authMsg('Check je e-mail voor bevestiging', 'success');
       }
     } else {
       const { data, error } = await _sb.auth.signInWithPassword({ email, password });
-      if (error) { showMessage(error.message, 'error'); return; }
+      if (error) { authMsg(error.message, 'error'); return; }
       currentUser = data.user;
-      showMessage('Welkom terug! 👋', 'success');
       if (!localStorage.getItem('triply_pin')) {
+        toast('Welkom! Kies een PIN 👋');
         setTimeout(() => showPinScreen('set'), 500);
       } else {
+        toast('Welkom terug! 👋');
         setTimeout(() => showTripSelector(), 500);
       }
     }
@@ -378,21 +520,24 @@ async function handleAuth() {
 }
 
 async function handleLogout() {
+  if (realtimeChannel) { _sb.removeChannel(realtimeChannel); realtimeChannel = null; }
   await _sb.auth.signOut();
-  currentUser = null;
-  currentTrip = null;
+  currentUser = null; currentTrip = null;
   showAuthScreen();
 }
 
-function showAuthScreen(force) {
+function showAuthScreen() {
   isSignup = false;
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.getElementById('auth-screen').classList.add('active');
+  showScreen('auth-screen');
   document.getElementById('auth-email').value = '';
   document.getElementById('auth-password').value = '';
   document.getElementById('auth-message').innerHTML = '';
   document.getElementById('btn-submit').textContent = 'Inloggen';
   document.getElementById('btn-toggle').textContent = 'Nieuw account';
+}
+
+function authMsg(msg, type) {
+  document.getElementById('auth-message').innerHTML = `<div class="${type}">${msg}</div>`;
 }
 
 function toggleSignup() {
@@ -401,19 +546,26 @@ function toggleSignup() {
   document.getElementById('btn-submit').textContent = isSignup ? 'Account aanmaken' : 'Inloggen';
 }
 
+// ── Trips ─────────────────────────────────────────────
 function showTripSelector() {
-  document.getElementById('auth-screen').classList.remove('active');
-  document.getElementById('trip-screen').classList.add('active');
-  document.getElementById('create-trip-screen').classList.remove('active');
-  document.getElementById('planner-screen').classList.remove('active');
+  showScreen('trip-screen');
   loadTrips();
 }
 
 function showCreateTrip() {
-  document.getElementById('auth-screen').classList.remove('active');
-  document.getElementById('trip-screen').classList.remove('active');
-  document.getElementById('create-trip-screen').classList.add('active');
-  document.getElementById('planner-screen').classList.remove('active');
+  showScreen('create-trip-screen');
+}
+
+async function loadTrips() {
+  const { data, error } = await _sb.from('triply_trips')
+    .select('*').eq('owner_id', currentUser.id).order('created_at', { ascending: false });
+  if (error) { document.getElementById('trip-message').innerHTML = `<div class="error">${error.message}</div>`; return; }
+  document.getElementById('trips-list').innerHTML = (data || []).map(t => `
+    <div class="trip-item" onclick="selectTrip('${t.id}')">
+      <div class="trip-name">${t.name}</div>
+      <div class="trip-meta">📍 ${t.destination} &nbsp;·&nbsp; ${t.start_date} → ${t.end_date}</div>
+    </div>
+  `).join('') || '<div style="color:var(--text);text-align:center;padding:20px;font-size:13px">Nog geen reizen — maak er een aan!</div>';
 }
 
 async function createTrip() {
@@ -422,181 +574,238 @@ async function createTrip() {
   const start = document.getElementById('trip-start').value;
   const end = document.getElementById('trip-end').value;
   const hotel = document.getElementById('trip-hotel').value.trim();
-
-  if (!name || !destination || !start || !end) { showMessage('Vul alle velden in', 'error'); return; }
-
+  if (!name || !destination || !start || !end) { toast('Vul alle verplichte velden in'); return; }
   const { error } = await _sb.from('triply_trips').insert([{
     owner_id: currentUser.id, name, destination,
     start_date: start, end_date: end, hotel_name: hotel,
     location_lat: 0, location_lng: 0, hotel_lat: 0, hotel_lng: 0,
   }]);
-
-  if (error) { showMessage(error.message, 'error'); return; }
-  showMessage('Reis aangemaakt! ✈️', 'success');
+  if (error) { toast('Fout: ' + error.message); return; }
+  toast('Reis aangemaakt! ✈️');
   setTimeout(() => showTripSelector(), 800);
 }
 
-async function loadTrips() {
-  const { data, error } = await _sb.from('triply_trips')
-    .select('*').eq('owner_id', currentUser.id).order('created_at', { ascending: false });
-
-  if (error) { showMessage(error.message, 'error'); return; }
-
-  document.getElementById('trips-list').innerHTML = (data || []).map(t => `
-    <div style="padding:14px;border:1.5px solid var(--border);border-radius:12px;margin-bottom:10px;cursor:pointer;transition:border-color .2s"
-         onmouseenter="this.style.borderColor='var(--blue)'" onmouseleave="this.style.borderColor='var(--border)'"
-         onclick="selectTrip('${t.id}')">
-      <div style="font-weight:700;color:var(--navy);margin-bottom:3px">${t.name}</div>
-      <div style="font-size:12px;color:var(--text)">${t.destination} &nbsp;•&nbsp; ${t.start_date} t/m ${t.end_date}</div>
-    </div>
-  `).join('') || '<div style="color:var(--text);text-align:center;padding:24px">Nog geen reizen</div>';
-}
-
+// ── Select trip & planner ─────────────────────────────
 function getDaysArray(startDate, endDate) {
-  const days = [];
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  let n = 1;
-
+  const days = []; const start = new Date(startDate); const end = new Date(endDate); let n = 1;
   while (start <= end) {
+    const weekday = start.toLocaleString('nl-NL', { weekday: 'short' });
     const day = start.getDate();
     const month = start.toLocaleString('nl-NL', { month: 'short' });
-    const weekday = start.toLocaleString('nl-NL', { weekday: 'long' });
-
-    days.push({
-      n,
-      date: `${day} ${month}`,
-      dateStr: start.toISOString().split('T')[0],
-      label: `${weekday.charAt(0).toUpperCase() + weekday.slice(1)} ${day} ${month}`,
-    });
-
-    start.setDate(start.getDate() + 1);
-    n++;
+    days.push({ n, dateStr: start.toISOString().split('T')[0],
+      label: `${weekday} ${day} ${month}` });
+    start.setDate(start.getDate() + 1); n++;
   }
-
   return days;
 }
 
 async function selectTrip(tripId) {
   const { data, error } = await _sb.from('triply_trips').select('*').eq('id', tripId).single();
-  if (error) { showMessage(error.message, 'error'); return; }
-
+  if (error) { toast('Fout: ' + error.message); return; }
   currentTrip = data;
   tripDays = getDaysArray(data.start_date, data.end_date);
 
-  document.getElementById('trip-title').textContent = `${data.name}`;
-  document.getElementById('trip-dates').textContent = `${data.destination} • ${data.start_date} t/m ${data.end_date}`;
+  document.getElementById('trip-title').textContent = data.name;
+  document.getElementById('trip-dates').textContent = `${data.destination} · ${data.start_date} → ${data.end_date}`;
 
-  document.getElementById('auth-screen').classList.remove('active');
-  document.getElementById('trip-screen').classList.remove('active');
-  document.getElementById('create-trip-screen').classList.remove('active');
+  // Fill day selector in modal
+  const daySelect = document.getElementById('activity-day');
+  daySelect.innerHTML = '<option value="">Wishlist (geen dag)</option>' +
+    tripDays.map(d => `<option value="${d.n}">Dag ${d.n} — ${d.label}</option>`).join('');
+
+  showScreen('planner-screen');
   document.getElementById('planner-screen').classList.add('active');
 
-  await loadPlanning();
-  await loadActivities();
-  await loadGroup();
-
-  setTimeout(processPendingShare, 500);
+  await Promise.all([loadPlanning(), loadActivities(), loadGroup()]);
+  setupRealtime();
+  setTimeout(processPendingShare, 400);
 }
 
-function switchTab(tab) {
+function switchTab(name, el) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
-
-  event.target.classList.add('active');
-  document.getElementById(tab + '-tab').style.display = 'block';
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  if (el) el.classList.add('active');
+  const tab = document.getElementById(name + '-tab');
+  if (tab) tab.classList.add('active');
+  if (name === 'map') initMap();
 }
 
+// ── Planning tab ──────────────────────────────────────
 async function loadPlanning() {
-  const { data: activities } = await _sb.from('triply_activities')
-    .select('*').eq('trip_id', currentTrip.id).order('day_number');
+  const { data: acts } = await _sb.from('triply_activities')
+    .select('*').eq('trip_id', currentTrip.id).not('day_number', 'is', null)
+    .order('scheduled_time');
 
-  const html = tripDays.map(day => {
-    const dayActivities = (activities || []).filter(a => a.day_number === day.n);
+  document.getElementById('planning-content').innerHTML = tripDays.map(day => {
+    const dayActs = (acts || []).filter(a => a.day_number === day.n)
+      .sort((a,b) => (a.scheduled_time||'').localeCompare(b.scheduled_time||''));
     return `
       <div class="day-card">
-        <div class="day-header">Dag ${day.n}: ${day.label}</div>
-        <div class="day-date">${day.dateStr}</div>
-        ${dayActivities.length ? dayActivities.map(a => `
-          <div class="activity-item">⏰ ${a.scheduled_time || '10:00'} — ${a.name}</div>
-        `).join('') : '<div class="activity-item" style="opacity:.5">Geen activiteiten gepland</div>'}
-      </div>
-    `;
+        <div class="day-header"><span class="day-label">Dag ${day.n}</span></div>
+        <div class="day-date-sub">${day.label}</div>
+        ${dayActs.length ? dayActs.map(a => `
+          <div class="timeline-item">
+            <span class="timeline-time" onclick="openTimeModal('${a.id}','${a.scheduled_time||'10:00'}')">${a.scheduled_time||'10:00'}</span>
+            <div class="timeline-dot"></div>
+            <span class="timeline-name">${a.name}</span>
+            <span class="timeline-del" onclick="deleteActivity('${a.id}')">🗑</span>
+          </div>
+        `).join('') : `<div class="day-empty">Nog niets gepland</div>`}
+      </div>`;
   }).join('');
-
-  document.getElementById('planning-content').innerHTML = html;
 }
 
+// ── Activities tab ────────────────────────────────────
 async function loadActivities() {
-  const { data: activities } = await _sb.from('triply_activities')
+  const { data: acts } = await _sb.from('triply_activities')
     .select('*').eq('trip_id', currentTrip.id).order('created_at', { ascending: false });
 
-  const html = (activities || []).map(a => `
-    <div class="activity-card">
-      <div class="activity-name">${a.name}</div>
+  document.getElementById('activities-content').innerHTML = (acts || []).map(a => `
+    <div class="activity-card" id="act-${a.id}">
+      <div class="activity-top">
+        <div class="activity-name">${a.name}</div>
+        <div class="activity-actions">
+          <button class="btn btn-secondary btn-sm" onclick="deleteActivity('${a.id}')">🗑</button>
+        </div>
+      </div>
       <div class="activity-meta">
-        <span class="activity-tag">🏷️ ${a.category}</span>
-        ${a.price_value > 0 ? `<span class="activity-tag">💶 €${a.price_value}</span>` : '<span class="activity-tag">Gratis</span>'}
-        ${a.day_number ? `<span class="activity-tag">Dag ${a.day_number}</span>` : '<span class="activity-tag">Wishlist</span>'}
+        <span class="activity-tag cat">🏷️ ${a.category || '—'}</span>
+        ${a.is_free ? '<span class="activity-tag">Gratis</span>' : `<span class="activity-tag">💶 €${a.price_value||0}</span>`}
+        ${a.day_number ? `<span class="activity-tag day-tag">Dag ${a.day_number} · ${a.scheduled_time||'10:00'}</span>` : '<span class="activity-tag">📋 Wishlist</span>'}
       </div>
       ${a.description ? `<div class="activity-desc">${a.description}</div>` : ''}
-      <div class="activity-location" onclick="openMaps('${a.area}', ${a.lat}, ${a.lng})">
-        📍 ${a.area} — Open in Maps
+      <div style="display:flex;gap:10px;align-items:center;margin-top:8px;flex-wrap:wrap">
+        <span class="activity-location" onclick="openMaps('${(a.area||'').replace(/'/g,"\\'")}',${a.lat||0},${a.lng||0})">📍 ${a.area||'Locatie onbekend'} — Open in Maps</span>
+        ${a.tiktok_url ? `<span class="tiktok-link" onclick="window.open('${a.tiktok_url}','_blank')">▶ TikTok</span>` : ''}
       </div>
     </div>
-  `).join('') || '<div style="text-align:center;color:var(--text);padding:20px">Geen activiteiten. Klik het ➕ icoon!</div>';
-
-  document.getElementById('activities-content').innerHTML = html;
+  `).join('') || '<div style="text-align:center;color:var(--text);padding:30px;font-size:13px">Nog geen activiteiten. Tik ➕ om toe te voegen!</div>';
 }
 
-async function loadGroup() {
-  const { data: groups } = await _sb.from('triply_groups')
+async function deleteActivity(id) {
+  if (!confirm('Activiteit verwijderen?')) return;
+  await _sb.from('triply_activities').delete().eq('id', id);
+  await Promise.all([loadPlanning(), loadActivities()]);
+  updateMapMarkers();
+  toast('Verwijderd');
+}
+
+// ── Map tab ───────────────────────────────────────────
+var mapMarkers = [];
+function initMap() {
+  if (leafletMap) { leafletMap.invalidateSize(); return; }
+  if (typeof L === 'undefined') {
+    const s = document.createElement('script');
+    s.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+    s.onload = () => createMap();
+    document.head.appendChild(s);
+  } else { createMap(); }
+}
+
+function createMap() {
+  const container = document.getElementById('map-container');
+  if (!container || leafletMap) return;
+  leafletMap = L.map(container).setView([36.28, 28.15], 11);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap'
+  }).addTo(leafletMap);
+  updateMapMarkers();
+}
+
+async function updateMapMarkers() {
+  if (!leafletMap || !currentTrip) return;
+  mapMarkers.forEach(m => m.remove());
+  mapMarkers = [];
+  const { data: acts } = await _sb.from('triply_activities')
     .select('*').eq('trip_id', currentTrip.id);
-
-  const html = (groups || []).map(g => `
-    <div style="margin-bottom:16px">
-      <div class="section-title">${g.name}</div>
-      <div style="background:white;padding:12px;border-radius:12px;border:1.5px solid var(--border);margin-bottom:12px">
-        <div style="font-size:12px;color:var(--text);margin-bottom:6px">📋 Groepscode</div>
-        <div style="font-family:monospace;font-size:14px;font-weight:700;color:var(--navy);padding:8px;background:var(--border);border-radius:8px;margin-bottom:8px">${g.share_code}</div>
-        <button class="btn btn-primary" onclick="copyCode('${g.share_code}')" style="font-size:13px;padding:10px">Kopieer code</button>
-      </div>
-      <div class="section-title" style="margin-top:8px">Deelnemers</div>
-      <div id="members-${g.id}"></div>
-    </div>
-  `).join('');
-
-  document.getElementById('group-content').innerHTML = html;
-
-  // Load members for each group
-  for (const group of (groups || [])) {
-    const { data: members } = await _sb.from('triply_group_members')
-      .select('*, triply_users(email, username)').eq('group_id', group.id);
-
-    const memberHtml = (members || []).map(m => `
-      <div style="padding:8px;background:var(--border);border-radius:10px;margin-bottom:6px;font-size:12px;color:var(--navy)">
-        👤 ${m.triply_users?.username || m.triply_users?.email || 'Onbekend'}
-      </div>
-    `).join('');
-
-    const memberEl = document.getElementById('members-' + group.id);
-    if (memberEl) memberEl.innerHTML = memberHtml || '<div style="color:var(--text);font-size:12px">Geen deelnemers</div>';
+  (acts || []).forEach(a => {
+    if (!a.lat || !a.lng) return;
+    const marker = L.marker([a.lat, a.lng])
+      .addTo(leafletMap)
+      .bindPopup(`<b>${a.name}</b><br>${a.area||''}<br><small>${a.category||''}</small>`);
+    mapMarkers.push(marker);
+  });
+  if (mapMarkers.length) {
+    const group = L.featureGroup(mapMarkers);
+    leafletMap.fitBounds(group.getBounds().pad(0.2));
   }
 }
 
-function openMaps(area, lat, lng) {
-  const isMobile = /iPhone|iPad|Android/i.test(navigator.userAgent);
-  let url;
-
-  if (isMobile && /iPhone|iPad/.test(navigator.userAgent)) {
-    // Apple Maps
-    url = `maps://maps.apple.com/?address=${encodeURIComponent(area)}&ll=${lat},${lng}`;
-  } else {
-    // Google Maps
-    url = `https://maps.google.com/?q=${lat},${lng}`;
+// ── Group tab ─────────────────────────────────────────
+async function loadGroup() {
+  const { data: groups } = await _sb.from('triply_groups').select('*').eq('trip_id', currentTrip.id);
+  if (!groups || groups.length === 0) {
+    document.getElementById('group-content').innerHTML = `
+      <div class="section-title">Groep</div>
+      <p style="font-size:13px;color:var(--text);margin-bottom:16px">Maak een groep aan zodat vrienden mee kunnen plannen.</p>
+      <input type="text" id="new-group-name" placeholder="Naam (bijv. Vakantiegroep)">
+      <button class="btn btn-primary" onclick="createGroup()">Groep aanmaken</button>
+      <div class="divider">of</div>
+      <input type="text" id="join-code" placeholder="Voer code in (bijv. ABC123)" style="text-transform:uppercase">
+      <button class="btn btn-secondary" onclick="joinGroup()">Groep joinen</button>`;
+    return;
   }
 
-  window.open(url, '_blank');
+  let html = '';
+  for (const g of groups) {
+    const { data: members } = await _sb.from('triply_group_members')
+      .select('*, triply_users(email, username)').eq('group_id', g.id);
+    html += `
+      <div class="section-title">${g.name}</div>
+      <div class="code-box">${g.share_code}</div>
+      <button class="btn btn-primary btn-sm" onclick="copyCode('${g.share_code}')" style="margin-bottom:16px;width:auto;padding:10px 20px">📋 Code kopiëren</button>
+      <div class="section-title" style="margin-top:12px">Deelnemers</div>
+      ${(members||[]).map(m => {
+        const name = m.triply_users?.username || m.triply_users?.email || 'Onbekend';
+        return `<div class="member-item">
+          <div class="member-avatar">${name[0].toUpperCase()}</div>
+          <div class="member-name">${name}</div>
+        </div>`;
+      }).join('')}`;
+  }
+  document.getElementById('group-content').innerHTML = html;
+}
+
+async function createGroup() {
+  const name = document.getElementById('new-group-name').value.trim();
+  if (!name) { toast('Voer een groepsnaam in'); return; }
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  const code = Array.from({length:6}, () => chars[Math.floor(Math.random()*chars.length)]).join('');
+  const { data, error } = await _sb.from('triply_groups')
+    .insert([{ trip_id: currentTrip.id, name, share_code: code, created_by: currentUser.id }]).select().single();
+  if (error) { toast('Fout: ' + error.message); return; }
+  await _sb.from('triply_group_members').insert([{ group_id: data.id, user_id: currentUser.id }]);
+  toast('Groep aangemaakt!');
+  loadGroup();
+}
+
+async function joinGroup() {
+  const code = document.getElementById('join-code').value.trim().toUpperCase();
+  if (!code) { toast('Voer een code in'); return; }
+  const { data: group, error } = await _sb.from('triply_groups').select('*').eq('share_code', code).single();
+  if (error) { toast('Code niet gevonden'); return; }
+  const { error: joinError } = await _sb.from('triply_group_members')
+    .insert([{ group_id: group.id, user_id: currentUser.id }]);
+  if (joinError && joinError.code !== '23505') { toast('Fout bij joinen'); return; }
+  toast('Je bent lid van de groep!');
+  loadGroup();
+}
+
+function copyCode(code) {
+  navigator.clipboard.writeText(code).then(() => toast(`Code ${code} gekopieerd! 📋`));
+}
+
+// ── AI Activity Analysis ──────────────────────────────
+async function fetchTikTokMeta(url) {
+  try {
+    const r = await fetch(`/api/tiktok?type=video&url=${encodeURIComponent(url)}`);
+    const j = await r.json();
+    if (j.ok && j.data?.data) {
+      const v = j.data.data;
+      return { title: v.title || '', author: v.author?.nickname || '' };
+    }
+  } catch (_) {}
+  return null;
 }
 
 function showAddActivityModal() {
@@ -612,45 +821,53 @@ function closeAddActivityModal() {
 }
 
 async function analyzeActivity() {
-  const url = document.getElementById('activity-url').value.trim();
-  if (!url) { showModalMessage('Voer een URL of beschrijving in', 'error'); return; }
+  const input = document.getElementById('activity-url').value.trim();
+  if (!input) { modalMsg('Voer een URL of beschrijving in', 'error'); return; }
 
   document.getElementById('add-btn').disabled = true;
   document.getElementById('add-btn').textContent = '⏳ Analyseren...';
   document.getElementById('modal-message').innerHTML = '';
 
   try {
-    // Simplified AI call — real impl would fetch TikTok metadata first
-    const prompt = `Je bent een reis-assistent. Analyseer deze TikTok video URL over een vakantieactiviteit in ${currentTrip.destination}.
+    const isTikTok = input.includes('tiktok.com') || input.includes('vm.tiktok');
+    let context = input;
 
-URL: ${url}
+    if (isTikTok) {
+      document.getElementById('add-btn').textContent = '📱 TikTok ophalen...';
+      const meta = await fetchTikTokMeta(input);
+      if (meta?.title) context = `Video titel: "${meta.title}"\nURL: ${input}`;
+    }
 
-Geef ALLEEN geldige JSON terug, geen uitleg, geen markdown, geen code blocks. Vul de velden in op basis van wat je weet over deze activiteit:
-{
-  "name": "<korte naam van de activiteit, max 30 tekens>",
-  "category": "<kies één van: Strand, Cultuur, Natuur, Eten & drinken, Avontuur, Uitzicht, Dagtrip>",
-  "area": "<buurt of locatie in ${currentTrip.destination}>",
-  "priceVal": <geschatte prijs in euro als getal, 0 als gratis>,
-  "free": <true als gratis, anders false>,
-  "description": "<1-2 zinnen beschrijving in het Nederlands>"
-}`;
+    document.getElementById('add-btn').textContent = '🤖 AI analyseert...';
 
     const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${groqKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'llama-3.1-8b-instant',
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.2,
-        max_tokens: 300,
+        model: 'llama-3.3-70b-versatile',
+        messages: [
+          { role: 'system', content: `Je bent een reisassistent die vakantieactiviteiten in ${currentTrip.destination} analyseert. Geef ALLEEN geldige JSON terug, geen uitleg, geen markdown.` },
+          { role: 'user', content: `Analyseer deze activiteit en geef JSON terug:
+${context}
+
+Bestemming: ${currentTrip.destination}
+
+JSON formaat (vul ECHTE waarden in, niet de voorbeelden):
+{"name":"<naam activiteit max 30 tekens>","category":"<Strand of Cultuur of Natuur of Eten & drinken of Avontuur of Uitzicht of Dagtrip>","area":"<specifieke buurt of locatie in ${currentTrip.destination}>","lat":<breedtegraad als decimaal getal>,"lng":<lengtegraad als decimaal getal>,"priceVal":<prijs in euro als getal>,"free":<true of false>,"description":"<1-2 zinnen in het Nederlands over wat het is en waarom leuk>"}` }
+        ],
+        temperature: 0.3,
+        max_tokens: 400,
       })
     });
 
-    if (!r.ok) { showModalMessage('API fout: ' + (await r.json()).error?.message, 'error'); return; }
+    if (!r.ok) { modalMsg('Groq API fout: ' + (await r.json()).error?.message, 'error'); return; }
 
     const data = await r.json();
     const text = data.choices[0].message.content;
     const json = JSON.parse(text.match(/\{[\s\S]*\}/)[0]);
+
+    const dayVal = document.getElementById('activity-day').value;
+    const timeVal = document.getElementById('activity-time-select').value;
 
     const { error } = await _sb.from('triply_activities').insert([{
       trip_id: currentTrip.id,
@@ -658,81 +875,110 @@ Geef ALLEEN geldige JSON terug, geen uitleg, geen markdown, geen code blocks. Vu
       name: json.name,
       category: json.category,
       area: json.area,
+      lat: json.lat || null,
+      lng: json.lng || null,
       price_value: json.priceVal || 0,
-      is_free: json.free,
+      is_free: json.free ?? (json.priceVal === 0),
       description: json.description,
-      lat: 36.28 + (Math.random() - 0.5) * 0.1,
-      lng: 28.15 + (Math.random() - 0.5) * 0.1,
-      tiktok_url: url,
+      tiktok_url: isTikTok ? input : null,
+      day_number: dayVal ? parseInt(dayVal) : null,
+      scheduled_time: dayVal ? timeVal : null,
     }]);
 
-    if (error) { showModalMessage(error.message, 'error'); return; }
+    if (error) { modalMsg(error.message, 'error'); return; }
 
-    showModalMessage('Activiteit toegevoegd! 🎉', 'success');
+    modalMsg('✅ Activiteit toegevoegd!', 'success');
     setTimeout(() => {
       closeAddActivityModal();
       loadActivities();
-    }, 1000);
+      loadPlanning();
+      updateMapMarkers();
+    }, 900);
 
   } catch(e) {
-    showModalMessage(e.message, 'error');
+    modalMsg('Fout: ' + e.message, 'error');
   } finally {
     document.getElementById('add-btn').disabled = false;
     document.getElementById('add-btn').textContent = '🤖 AI analyseren';
   }
 }
 
-function copyCode(code) {
-  navigator.clipboard.writeText(code).then(() => showMessage(`Code ${code} gekopieerd!`, 'success'));
-}
-
-function showMessage(msg, type) {
-  const el = document.getElementById('auth-message');
-  if (el) { el.innerHTML = `<div class="${type}" style="text-align:center">${msg}</div>`; setTimeout(() => el.innerHTML = '', 3000); }
-}
-
-function showModalMessage(msg, type) {
+function modalMsg(msg, type) {
   document.getElementById('modal-message').innerHTML = `<div class="${type}">${msg}</div>`;
 }
 
-// Capture share intent from URL
+// ── Time edit modal ───────────────────────────────────
+function openTimeModal(activityId, currentTime) {
+  editingActivityId = activityId;
+  document.getElementById('time-select-modal').value = currentTime;
+  document.getElementById('time-modal').classList.add('active');
+}
+function closeTimeModal() {
+  document.getElementById('time-modal').classList.remove('active');
+  editingActivityId = null;
+}
+async function saveTime() {
+  const time = document.getElementById('time-select-modal').value;
+  await _sb.from('triply_activities').update({ scheduled_time: time }).eq('id', editingActivityId);
+  closeTimeModal();
+  loadPlanning();
+  toast('Tijdstip bijgewerkt');
+}
+
+// ── Maps ──────────────────────────────────────────────
+function openMaps(area, lat, lng) {
+  const isIOS = /iPhone|iPad/.test(navigator.userAgent);
+  const url = (lat && lng && lat !== 0)
+    ? (isIOS ? `maps://maps.apple.com/?ll=${lat},${lng}&q=${encodeURIComponent(area)}`
+               : `https://maps.google.com/?q=${lat},${lng}`)
+    : (isIOS ? `maps://maps.apple.com/?q=${encodeURIComponent(area)}`
+               : `https://maps.google.com/?q=${encodeURIComponent(area)}`);
+  window.open(url, '_blank');
+}
+
+// ── Realtime ──────────────────────────────────────────
+function setupRealtime() {
+  if (realtimeChannel) { _sb.removeChannel(realtimeChannel); }
+  realtimeChannel = _sb.channel('activities-' + currentTrip.id)
+    .on('postgres_changes', {
+      event: '*', schema: 'public', table: 'triply_activities',
+      filter: `trip_id=eq.${currentTrip.id}`
+    }, (payload) => {
+      if (payload.new?.added_by !== currentUser.id) {
+        toast('📍 Nieuwe activiteit toegevoegd door groepslid!');
+      }
+      loadActivities();
+      loadPlanning();
+      updateMapMarkers();
+    })
+    .subscribe();
+}
+
+// ── Share intent ──────────────────────────────────────
 function captureShareIntent() {
   const params = new URLSearchParams(window.location.search);
   const sharedUrl = params.get('url');
-  const sharedTitle = params.get('title');
-  const sharedText = params.get('text');
-
   if (sharedUrl) {
-    sessionStorage.setItem('pendingShare', JSON.stringify({
-      url: sharedUrl,
-      title: sharedTitle,
-      text: sharedText
-    }));
+    sessionStorage.setItem('pendingShare', JSON.stringify({ url: sharedUrl, title: params.get('title') }));
     window.history.replaceState({}, document.title, window.location.pathname);
   }
 }
 
-// Process pending share after trip is selected
 function processPendingShare() {
-  const pendingShare = sessionStorage.getItem('pendingShare');
-  if (pendingShare && currentTrip) {
+  const pending = sessionStorage.getItem('pendingShare');
+  if (pending && currentTrip) {
     try {
-      const share = JSON.parse(pendingShare);
+      const share = JSON.parse(pending);
       document.getElementById('activity-url').value = share.url + (share.title ? ' ' + share.title : '');
       sessionStorage.removeItem('pendingShare');
       showAddActivityModal();
-    } catch (e) {
-      console.error('Error processing share intent:', e);
-      sessionStorage.removeItem('pendingShare');
-    }
+    } catch (_) { sessionStorage.removeItem('pendingShare'); }
   }
 }
 
-// Register Service Worker
+// ── Service Worker ────────────────────────────────────
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js').then(reg => {
-    console.log('SW registered:', reg);
-  }).catch(e => console.warn('SW registration failed:', e));
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
 }
 
 captureShareIntent();
