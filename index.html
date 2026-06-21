@@ -232,9 +232,6 @@ async function initSupabase() {
     }
     _sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey);
     groqKey = cfg.groqApiKey || '';
-    if (!groqKey) {
-      console.warn('GROQ_API_KEY not configured in Vercel environment variables');
-    }
     await checkAuth();
   } catch(e) {
     console.error('Init failed:', e);
