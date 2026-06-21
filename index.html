@@ -974,9 +974,15 @@ function setupRealtime() {
 // ── Share intent ──────────────────────────────────────
 function captureShareIntent() {
   const params = new URLSearchParams(window.location.search);
-  const sharedUrl = params.get('url');
-  if (sharedUrl) {
-    sessionStorage.setItem('pendingShare', JSON.stringify({ url: sharedUrl, title: params.get('title') }));
+  // iOS Shortcuts can pass url, text, or title
+  const sharedUrl = params.get('url') || params.get('text') || params.get('title') || '';
+  // Extract TikTok URL from anywhere in the string
+  const tikTokMatch = sharedUrl.match(/https?:\/\/[^\s]*tiktok\.com[^\s]*/i)
+    || sharedUrl.match(/https?:\/\/vm\.tiktok[^\s]*/i);
+  const cleanUrl = tikTokMatch ? tikTokMatch[0] : sharedUrl.trim();
+
+  if (cleanUrl) {
+    sessionStorage.setItem('pendingShare', cleanUrl);
     window.history.replaceState({}, document.title, window.location.pathname);
   }
 }
@@ -984,12 +990,13 @@ function captureShareIntent() {
 function processPendingShare() {
   const pending = sessionStorage.getItem('pendingShare');
   if (pending && currentTrip) {
-    try {
-      const share = JSON.parse(pending);
-      document.getElementById('activity-url').value = share.url + (share.title ? ' ' + share.title : '');
-      sessionStorage.removeItem('pendingShare');
-      showAddActivityModal();
-    } catch (_) { sessionStorage.removeItem('pendingShare'); }
+    sessionStorage.removeItem('pendingShare');
+    document.getElementById('activity-url').value = pending;
+    showAddActivityModal();
+    // Auto-start analyse als het een TikTok URL is
+    if (pending.includes('tiktok.com') || pending.includes('vm.tiktok')) {
+      setTimeout(analyzeActivity, 300);
+    }
   }
 }
 
