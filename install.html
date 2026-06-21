@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Triply Shortcut installeren</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, sans-serif;
+      background: linear-gradient(135deg, #11314a 0%, #1a5276 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .card {
+      background: white;
+      border-radius: 20px;
+      padding: 36px 28px;
+      max-width: 360px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    .logo { font-size: 56px; margin-bottom: 12px; }
+    h1 { font-size: 24px; color: #11314a; margin-bottom: 8px; }
+    p { color: #666; font-size: 15px; line-height: 1.5; margin-bottom: 28px; }
+    .btn {
+      display: block;
+      background: linear-gradient(135deg, #4ecdc4, #2f7fc7);
+      color: white;
+      text-decoration: none;
+      padding: 16px 24px;
+      border-radius: 14px;
+      font-size: 17px;
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+    .steps {
+      background: #f5f7fa;
+      border-radius: 12px;
+      padding: 16px;
+      text-align: left;
+      margin-top: 24px;
+    }
+    .steps p { color: #444; font-size: 14px; margin-bottom: 6px; }
+    .steps p:last-child { margin-bottom: 0; }
+    .note { font-size: 13px; color: #999; margin-top: 16px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">📍</div>
+    <h1>Triply Shortcut</h1>
+    <p>Deel TikTok-video's direct naar Triply met één tik.</p>
+
+    <a class="btn" href="shortcuts://import-shortcut?url=https://vakantie-webapp.vercel.app/Triply.shortcut&name=Triply">
+      ⬇️ Installeer Shortcut
+    </a>
+
+    <div class="steps">
+      <p><strong>Daarna:</strong></p>
+      <p>1. Open TikTok → tik op een video</p>
+      <p>2. Deel → scrol naar <strong>Triply</strong></p>
+      <p>3. De activiteit wordt automatisch toegevoegd ✅</p>
+    </div>
+
+    <p class="note">Werkt alleen op iPhone met iOS 14 of hoger</p>
+  </div>
+</body>
+</html>
