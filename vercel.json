@@ -1,13 +1,12 @@
 {
   "outputDirectory": ".",
-  "routes": [
+  "headers": [
     {
-      "src": "/Triply.shortcut",
-      "dest": "/public/Triply.shortcut",
-      "headers": {
-        "Content-Type": "application/octet-stream",
-        "Content-Disposition": "attachment; filename=\"Triply.shortcut\""
-      }
+      "source": "/Triply.shortcut",
+      "headers": [
+        { "key": "Content-Type", "value": "application/octet-stream" },
+        { "key": "Content-Disposition", "value": "attachment; filename=\"Triply.shortcut\"" }
+      ]
     }
   ]
 }
