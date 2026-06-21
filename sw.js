@@ -1,12 +1,10 @@
-const CACHE = 'triply-v1';
+const CACHE = 'triply-v2';
 
 self.addEventListener('install', e => {
-  console.log('SW: Installing...');
   self.skipWaiting();
 });
 
 self.addEventListener('activate', e => {
-  console.log('SW: Activating...');
   e.waitUntil(caches.keys().then(keys =>
     Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
   ));
@@ -16,6 +14,9 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
 
+  // Alleen same-origin requests cachen, CDN requests direct doorlaten
+  if (!e.request.url.startsWith(self.location.origin)) return;
+
   e.respondWith(
     fetch(e.request)
       .then(r => {
@@ -24,6 +25,8 @@ self.addEventListener('fetch', e => {
         caches.open(CACHE).then(c => c.put(e.request, clone)).catch(() => {});
         return r;
       })
-      .catch(() => caches.match(e.request).then(cached => cached || new Response('Offline', { status: 503 })))
+      .catch(() => caches.match(e.request).then(cached =>
+        cached || new Response('Offline', { status: 503, headers: { 'Content-Type': 'text/plain' } })
+      ))
   );
 });
