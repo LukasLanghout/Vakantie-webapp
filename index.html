@@ -272,8 +272,13 @@ select:focus { outline: none; border-color: var(--blue); }
     <div class="auth-title">Mijn reizen</div>
     <div id="trip-message"></div>
     <div id="trips-list"></div>
-    <button class="btn btn-primary" onclick="showCreateTrip()" style="margin-top:8px">+ Nieuwe reis</button>
-    <div style="margin-top:10px">
+    <button class="btn btn-primary" onclick="showCreateTrip()" style="margin-top:8px">+ Nieuwe reis aanmaken</button>
+    <div class="divider">of vriend heeft al een reis?</div>
+    <div style="display:flex;gap:8px">
+      <input type="text" id="trip-join-code" placeholder="Code invoeren (bijv. ABC123)" style="text-transform:uppercase;margin:0;flex:1">
+      <button class="btn btn-secondary" onclick="joinTripByCode()" style="margin:0;white-space:nowrap;padding:0 16px">Joinen</button>
+    </div>
+    <div style="margin-top:12px">
       <button class="btn btn-secondary" style="font-size:12px;padding:10px" onclick="handleLogout()">Uitloggen</button>
     </div>
   </div>
@@ -557,15 +562,48 @@ function showCreateTrip() {
 }
 
 async function loadTrips() {
-  const { data, error } = await _sb.from('triply_trips')
+  // Eigen trips
+  const { data: ownTrips } = await _sb.from('triply_trips')
     .select('*').eq('owner_id', currentUser.id).order('created_at', { ascending: false });
-  if (error) { document.getElementById('trip-message').innerHTML = `<div class="error">${error.message}</div>`; return; }
-  document.getElementById('trips-list').innerHTML = (data || []).map(t => `
+
+  // Trips via groepslidmaatschap
+  const { data: memberships } = await _sb.from('triply_group_members')
+    .select('triply_groups(trip_id)').eq('user_id', currentUser.id);
+  const memberTripIds = (memberships || [])
+    .map(m => m.triply_groups?.trip_id).filter(Boolean);
+  const ownTripIds = (ownTrips || []).map(t => t.id);
+  const joinedIds = memberTripIds.filter(id => !ownTripIds.includes(id));
+
+  let joinedTrips = [];
+  if (joinedIds.length > 0) {
+    const { data } = await _sb.from('triply_trips').select('*').in('id', joinedIds);
+    joinedTrips = data || [];
+  }
+
+  const allTrips = [...(ownTrips || []), ...joinedTrips];
+  document.getElementById('trips-list').innerHTML = allTrips.map(t => `
     <div class="trip-item" onclick="selectTrip('${t.id}')">
       <div class="trip-name">${t.name}</div>
       <div class="trip-meta">📍 ${t.destination} &nbsp;·&nbsp; ${t.start_date} → ${t.end_date}</div>
     </div>
-  `).join('') || '<div style="color:var(--text);text-align:center;padding:20px;font-size:13px">Nog geen reizen — maak er een aan!</div>';
+  `).join('') || '<div style="color:var(--text);text-align:center;padding:20px;font-size:13px">Nog geen reizen — maak er een aan of voer een code in!</div>';
+}
+
+async function joinTripByCode() {
+  const code = (document.getElementById('trip-join-code').value || '').trim().toUpperCase();
+  if (!code) { document.getElementById('trip-message').innerHTML = '<div class="error">Voer een code in</div>'; return; }
+
+  const { data: group, error } = await _sb.from('triply_groups').select('*').eq('share_code', code).single();
+  if (error || !group) { document.getElementById('trip-message').innerHTML = '<div class="error">Code niet gevonden</div>'; return; }
+
+  // Voeg toe als groepslid (negeer duplicate fout)
+  await _sb.from('triply_group_members').insert([{ group_id: group.id, user_id: currentUser.id }]);
+
+  document.getElementById('trip-join-code').value = '';
+  document.getElementById('trip-message').innerHTML = '<div class="success">✅ Reis gevonden!</div>';
+  await loadTrips();
+  // Open de reis direct
+  selectTrip(group.trip_id);
 }
 
 async function createTrip() {
