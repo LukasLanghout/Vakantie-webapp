@@ -427,9 +427,10 @@ select:focus { outline: none; border-color: var(--primary); background: white; b
     <div class="modal-close" onclick="closeAddActivityModal()">✕</div>
     <div class="modal-title">Activiteit toevoegen</div>
     <div style="display:flex;gap:8px;align-items:stretch">
-      <textarea id="activity-url" placeholder="Plak een TikTok URL of beschrijf de activiteit..." style="flex:1;margin:0"></textarea>
+      <textarea id="activity-url" placeholder="Plak 1 of meerdere TikTok links (max 60, één per regel) of beschrijf de activiteit..." style="flex:1;margin:0;min-height:80px" oninput="onActivityInput()"></textarea>
       <button onclick="pasteFromClipboard()" title="Plak van klembord" style="background:var(--secondary);color:white;border:none;border-radius:12px;padding:0 14px;font-size:18px;cursor:pointer;flex-shrink:0">📋</button>
     </div>
+    <div id="url-count-hint" style="font-size:12px;color:var(--text);margin-bottom:8px;display:none"></div>
     <select id="activity-day">
       <option value="">Wishlist (geen dag)</option>
     </select>
@@ -1352,10 +1353,31 @@ function showAddActivityModal() {
   document.getElementById('add-modal').classList.add('active');
 }
 
+function onActivityInput() {
+  const val = document.getElementById('activity-url').value;
+  const urls = extractAllTikTokUrls(val);
+  const hint = document.getElementById('url-count-hint');
+  if (urls.length > 1) {
+    const count = Math.min(urls.length, 60);
+    hint.textContent = `${count} TikTok links gevonden${urls.length > 60 ? ' (max 60, de rest wordt overgeslagen)' : ''}`;
+    hint.style.display = 'block';
+    document.getElementById('add-btn').textContent = `🤖 ${count} links analyseren`;
+  } else {
+    hint.style.display = 'none';
+    document.getElementById('add-btn').textContent = '🤖 AI analyseren';
+  }
+}
+
+function extractAllTikTokUrls(text) {
+  const matches = text.match(/https?:\/\/\S*tiktok\.com\S*|https?:\/\/vm\.tiktok\S*/gi) || [];
+  return matches.map(u => u.replace(/['")\]>]+$/, ''));
+}
+
 function closeAddActivityModal() {
   document.getElementById('add-modal').classList.remove('active');
   document.getElementById('activity-url').value = '';
   document.getElementById('modal-message').innerHTML = '';
+  document.getElementById('url-count-hint').style.display = 'none';
   document.getElementById('add-btn').disabled = false;
   document.getElementById('add-btn').textContent = '🤖 AI analyseren';
   document.getElementById('places-query').value = '';
@@ -1369,70 +1391,25 @@ async function analyzeActivity() {
   const input = document.getElementById('activity-url').value.trim();
   if (!input) { modalMsg('Voer een URL of beschrijving in', 'error'); return; }
 
+  const tiktokUrls = extractAllTikTokUrls(input);
+
+  // Multi-link mode: meerdere TikTok URLs
+  if (tiktokUrls.length > 1) {
+    await analyzeBulkTikTok(tiktokUrls.slice(0, 60));
+    return;
+  }
+
+  // Single mode: één URL of beschrijving
   document.getElementById('add-btn').disabled = true;
-  document.getElementById('add-btn').textContent = '⏳ Analyseren...';
   document.getElementById('modal-message').innerHTML = '';
 
   try {
     const isTikTok = input.includes('tiktok.com') || input.includes('vm.tiktok');
-    let context = input;
-
-    if (isTikTok) {
-      document.getElementById('add-btn').textContent = '📱 TikTok ophalen...';
-      const meta = await fetchTikTokMeta(input);
-      const parts = [];
-      if (meta?.title) parts.push(`Video ondertitel: "${meta.title}"`);
-      if (meta?.author) parts.push(`Creator: @${meta.author}`);
-
-      document.getElementById('add-btn').textContent = '🎙️ Audio transcriberen...';
-      const transcript = await transcribeTikTok(input);
-      if (transcript) parts.push(`Gesproken tekst in video:\n"${transcript}"`);
-
-      context = parts.length > 0 ? parts.join('\n\n') : input;
-    }
-
-    document.getElementById('add-btn').textContent = '🤖 AI analyseert...';
-
-    const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${groqKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
-        messages: [
-          { role: 'system', content: `Je bent een reisassistent die vakantieactiviteiten in ${currentTrip.destination} analyseert. Geef ALLEEN geldige JSON terug, geen uitleg, geen markdown.` },
-          { role: 'user', content: `Analyseer deze activiteit en geef JSON terug:
-${context}
-
-Bestemming: ${currentTrip.destination}
-
-JSON formaat (vul ECHTE waarden in, niet de voorbeelden):
-{"name":"<naam activiteit max 30 tekens>","category":"<Strand of Cultuur of Natuur of Eten & drinken of Avontuur of Uitzicht of Dagtrip>","area":"<naam van de specifieke plek/locatie, bijv. 'Lindos', 'Acropolis Rhodos', 'Old Town'>","priceVal":<prijs in euro als getal, 0 als gratis>,"free":<true of false>,"description":"<1-2 zinnen in het Nederlands over wat het is en waarom leuk>"}` }
-        ],
-        temperature: 0.3,
-        max_tokens: 400,
-      })
+    const json = await analyzeOneActivity(input, isTikTok, (msg) => {
+      document.getElementById('add-btn').textContent = msg;
     });
 
-    if (!r.ok) { modalMsg('Groq API fout: ' + (await r.json()).error?.message, 'error'); return; }
-
-    const data = await r.json();
-    const text = data.choices[0].message.content;
-    const json = JSON.parse(text.match(/\{[\s\S]*\}/)[0]);
-
-    // Geocode de locatienaam via OpenStreetMap Nominatim
-    let lat = null, lng = null;
-    if (json.area) {
-      document.getElementById('add-btn').textContent = '📍 Locatie opzoeken...';
-      const query = encodeURIComponent(`${json.area}, ${currentTrip.destination}`);
-      try {
-        const geo = await fetch(
-          `https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1`,
-          { headers: { 'Accept-Language': 'nl', 'User-Agent': 'Triply/1.0' } }
-        );
-        const geoData = await geo.json();
-        if (geoData[0]) { lat = parseFloat(geoData[0].lat); lng = parseFloat(geoData[0].lon); }
-      } catch (_) {}
-    }
+    if (!json) return;
 
     const dayVal = document.getElementById('activity-day').value;
     const timeVal = document.getElementById('activity-time-select').value;
@@ -1443,8 +1420,8 @@ JSON formaat (vul ECHTE waarden in, niet de voorbeelden):
       name: json.name,
       category: json.category,
       area: json.area,
-      lat,
-      lng,
+      lat: json._lat || null,
+      lng: json._lng || null,
       price_value: json.priceVal || 0,
       is_free: json.free ?? (json.priceVal === 0),
       description: json.description,
@@ -1469,6 +1446,118 @@ JSON formaat (vul ECHTE waarden in, niet de voorbeelden):
     document.getElementById('add-btn').disabled = false;
     document.getElementById('add-btn').textContent = '🤖 AI analyseren';
   }
+}
+
+async function analyzeBulkTikTok(urls) {
+  const btn = document.getElementById('add-btn');
+  btn.disabled = true;
+  let done = 0, failed = 0;
+
+  const dayVal = document.getElementById('activity-day').value;
+  const timeVal = document.getElementById('activity-time-select').value;
+
+  for (let i = 0; i < urls.length; i++) {
+    const url = urls[i];
+    btn.textContent = `⏳ ${i + 1}/${urls.length} verwerken...`;
+    modalMsg(`<div style="margin-bottom:4px">⏳ Bezig met link ${i + 1} van ${urls.length}...</div>
+      <div style="background:var(--border);border-radius:8px;height:6px;overflow:hidden">
+        <div style="background:var(--primary);height:100%;width:${Math.round((i/urls.length)*100)}%;transition:width .3s"></div>
+      </div>`, '');
+    try {
+      const json = await analyzeOneActivity(url, true, () => {});
+      if (!json) { failed++; continue; }
+
+      await _sb.from('triply_activities').insert([{
+        trip_id: currentTrip.id,
+        added_by: currentUser.id,
+        name: json.name,
+        category: json.category,
+        area: json.area,
+        lat: json._lat || null,
+        lng: json._lng || null,
+        price_value: json.priceVal || 0,
+        is_free: json.free ?? (json.priceVal === 0),
+        description: json.description,
+        tiktok_url: url,
+        day_number: dayVal ? parseInt(dayVal) : null,
+        scheduled_time: dayVal ? timeVal : null,
+      }]);
+      done++;
+    } catch (_) { failed++; }
+  }
+
+  const failMsg = failed > 0 ? `, ${failed} mislukt` : '';
+  modalMsg(`✅ ${done} activiteiten toegevoegd${failMsg}!`, 'success');
+  btn.disabled = false;
+  btn.textContent = '🤖 AI analyseren';
+
+  setTimeout(() => {
+    closeAddActivityModal();
+    loadActivities();
+    loadPlanning();
+    updateMapMarkers();
+  }, 1500);
+}
+
+async function analyzeOneActivity(input, isTikTok, setStatus) {
+  let context = input;
+
+  if (isTikTok) {
+    setStatus('📱 TikTok ophalen...');
+    const meta = await fetchTikTokMeta(input);
+    const parts = [];
+    if (meta?.title) parts.push(`Video ondertitel: "${meta.title}"`);
+    if (meta?.author) parts.push(`Creator: @${meta.author}`);
+
+    setStatus('🎙️ Audio transcriberen...');
+    const transcript = await transcribeTikTok(input);
+    if (transcript) parts.push(`Gesproken tekst in video:\n"${transcript}"`);
+
+    context = parts.length > 0 ? parts.join('\n\n') : input;
+  }
+
+  setStatus('🤖 AI analyseert...');
+
+  const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${groqKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'llama-3.3-70b-versatile',
+      messages: [
+        { role: 'system', content: `Je bent een reisassistent die vakantieactiviteiten in ${currentTrip.destination} analyseert. Geef ALLEEN geldige JSON terug, geen uitleg, geen markdown.` },
+        { role: 'user', content: `Analyseer deze activiteit en geef JSON terug:
+${context}
+
+Bestemming: ${currentTrip.destination}
+
+JSON formaat (vul ECHTE waarden in, niet de voorbeelden):
+{"name":"<naam activiteit max 30 tekens>","category":"<Strand of Cultuur of Natuur of Eten & drinken of Avontuur of Uitzicht of Dagtrip>","area":"<naam van de specifieke plek/locatie, bijv. 'Lindos', 'Acropolis Rhodos', 'Old Town'>","priceVal":<prijs in euro als getal, 0 als gratis>,"free":<true of false>,"description":"<1-2 zinnen in het Nederlands over wat het is en waarom leuk>"}` }
+      ],
+      temperature: 0.3,
+      max_tokens: 400,
+    })
+  });
+
+  if (!r.ok) return null;
+
+  const data = await r.json();
+  const text = data.choices[0].message.content;
+  const json = JSON.parse(text.match(/\{[\s\S]*\}/)[0]);
+
+  // Geocode locatie
+  if (json.area) {
+    setStatus('📍 Locatie opzoeken...');
+    try {
+      const geo = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(json.area + ', ' + currentTrip.destination)}&format=json&limit=1`,
+        { headers: { 'Accept-Language': 'nl', 'User-Agent': 'Triply/1.0' } }
+      );
+      const geoData = await geo.json();
+      if (geoData[0]) { json._lat = parseFloat(geoData[0].lat); json._lng = parseFloat(geoData[0].lon); }
+    } catch (_) {}
+  }
+
+  return json;
 }
 
 function modalMsg(msg, type) {
