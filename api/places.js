@@ -1,7 +1,5 @@
 export const maxDuration = 30;
 
-const { createClient } = require('@supabase/supabase-js');
-
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   if (req.method === 'OPTIONS') return res.status(200).end();
@@ -9,97 +7,101 @@ export default async function handler(req, res) {
   const { query, location, tripId } = req.query;
   if (!query) return res.status(400).json({ ok: false, error: 'Missing query' });
 
-  try {
-    // Check cache first if tripId provided
-    let cachedResults = [];
-    if (tripId) {
-      const sb = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-      const { data } = await sb
-        .from('triply_places')
-        .select('*')
-        .eq('trip_id', tripId)
-        .ilike('name', `%${query}%`)
-        .limit(10);
+  const sbUrl = process.env.SUPABASE_URL;
+  const sbKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-      if (data && data.length > 0) {
-        return res.json({ ok: true, results: formatPlaces(data), cached: true });
+  try {
+    // Check Supabase cache first if tripId provided
+    if (tripId && sbUrl && sbKey) {
+      const cacheRes = await fetch(
+        `${sbUrl}/rest/v1/triply_places?trip_id=eq.${tripId}&name=ilike.*${encodeURIComponent(query)}*&limit=10`,
+        { headers: { apikey: sbKey, Authorization: `Bearer ${sbKey}` } }
+      );
+      if (cacheRes.ok) {
+        const cached = await cacheRes.json();
+        if (cached && cached.length > 0) {
+          return res.json({ ok: true, results: formatPlaces(cached), cached: true });
+        }
       }
     }
 
-    // OpenTripMap free API - no key needed!
+    // Get bounding box for location
     const bbox = location ? await getLocationBbox(location) : null;
-    const limit = 20;
     const kinds = 'interesting_places,museums,historic,cafe,restaurant,bar,hotel';
+    const apiUrl = `https://api.opentripmap.com/0.1/en/places/bbox?lon_min=${bbox?.lon_min ?? -180}&lon_max=${bbox?.lon_max ?? 180}&lat_min=${bbox?.lat_min ?? -90}&lat_max=${bbox?.lat_max ?? 90}&kinds=${kinds}&limit=50&format=json`;
 
-    let url = `https://api.opentripmap.com/0.1/en/places/bbox?lon_min=${bbox?.lon_min || -180}&lon_max=${bbox?.lon_max || 180}&lat_min=${bbox?.lat_min || -90}&lat_max=${bbox?.lat_max || 90}&kinds=${kinds}&limit=${limit}`;
+    const placesRes = await fetch(apiUrl, { signal: AbortSignal.timeout(10000) });
+    if (!placesRes.ok) return res.json({ ok: true, results: [] });
 
-    const placesRes = await fetch(url, { signal: AbortSignal.timeout(10000) });
     const placesData = await placesRes.json();
+    const features = Array.isArray(placesData) ? placesData : (placesData.features || []);
 
-    if (!placesData.features || placesData.features.length === 0) {
-      return res.json({ ok: true, results: [] });
-    }
+    if (features.length === 0) return res.json({ ok: true, results: [] });
 
-    // Filter by query if provided, then get full details
+    // Filter by query text
     const queryLower = query.toLowerCase();
-    const featuresArray = placesData.features.filter(f =>
-      f.properties.name.toLowerCase().includes(queryLower)
-    ).slice(0, 10);
+    const matched = features
+      .filter(f => (f.properties?.name || f.name || '').toLowerCase().includes(queryLower))
+      .slice(0, 10);
 
+    if (matched.length === 0) return res.json({ ok: true, results: [] });
+
+    // Fetch full details for each matched place
     const results = [];
-    for (const feature of featuresArray) {
-      const xid = feature.properties.xid;
+    for (const feature of matched) {
+      const xid = feature.properties?.xid || feature.xid;
+      if (!xid) continue;
       try {
-        const detailRes = await fetch(`https://api.opentripmap.com/0.1/en/places/xid/${xid}`, {
-          signal: AbortSignal.timeout(5000)
-        });
-        const detail = await detailRes.json();
+        const detailRes = await fetch(
+          `https://api.opentripmap.com/0.1/en/places/xid/${xid}?format=json`,
+          { signal: AbortSignal.timeout(5000) }
+        );
+        if (!detailRes.ok) throw new Error('detail failed');
+        const d = await detailRes.json();
 
-        results.push({
-          name: detail.name || '',
-          category: (detail.kinds || '').split(',')[0] || 'Plaats',
-          address: detail.address || '',
-          lat: detail.lat || 0,
-          lng: detail.lon || 0,
-          rating: detail.rate ? parseFloat(detail.rate) : null,
-          review_count: detail.review_count || 0,
-          description: detail.wikipedia_extracts?.text || detail.description || '',
-          opening_hours: detail.openinghours || '',
-          website: detail.url || '',
-          phone: detail.phone || '',
-          image_url: detail.preview?.source || null,
+        const place = {
+          name: d.name || feature.properties?.name || '',
+          category: (d.kinds || '').split(',')[0] || 'Plaats',
+          address: formatAddress(d.address),
+          lat: d.point?.lat || d.lat || feature.geometry?.coordinates?.[1] || 0,
+          lng: d.point?.lon || d.lon || feature.geometry?.coordinates?.[0] || 0,
+          rating: d.rate ? parseFloat(d.rate) : null,
+          review_count: 0,
+          description: d.wikipedia_extracts?.text || d.info?.descr || '',
+          opening_hours: '',
+          website: d.url || d.otm || '',
+          phone: '',
+          image_url: d.preview?.source || null,
           external_id: xid,
-        });
+        };
+        results.push(place);
 
-        // Cache in database if tripId provided
-        if (tripId && process.env.SUPABASE_URL) {
-          const sb = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-          await sb.from('triply_places').upsert([{
-            trip_id: tripId,
-            name: detail.name || '',
-            category: (detail.kinds || '').split(',')[0] || 'Plaats',
-            address: detail.address || '',
-            lat: detail.lat || 0,
-            lng: detail.lon || 0,
-            rating: detail.rate ? parseFloat(detail.rate) : null,
-            review_count: detail.review_count || 0,
-            description: detail.wikipedia_extracts?.text || detail.description || '',
-            opening_hours: detail.openinghours || '',
-            website: detail.url || '',
-            phone: detail.phone || '',
-            image_url: detail.preview?.source || null,
-            external_id: xid,
-            source: 'opentripmap',
-          }], { onConflict: 'trip_id,external_id,source' }).catch(() => {});
+        // Cache to Supabase if tripId provided
+        if (tripId && sbUrl && sbKey) {
+          fetch(`${sbUrl}/rest/v1/triply_places`, {
+            method: 'POST',
+            headers: {
+              apikey: sbKey,
+              Authorization: `Bearer ${sbKey}`,
+              'Content-Type': 'application/json',
+              Prefer: 'resolution=merge-duplicates',
+            },
+            body: JSON.stringify([{
+              trip_id: tripId,
+              ...place,
+              source: 'opentripmap',
+            }]),
+          }).catch(() => {});
         }
       } catch (_) {
-        // If detail fails, use basic info
+        // Fall back to basic info from search result
+        const props = feature.properties || feature;
         results.push({
-          name: feature.properties.name || '',
-          category: 'Plaats',
+          name: props.name || '',
+          category: (props.kinds || '').split(',')[0] || 'Plaats',
           address: '',
-          lat: feature.geometry.coordinates[1],
-          lng: feature.geometry.coordinates[0],
+          lat: feature.geometry?.coordinates?.[1] || 0,
+          lng: feature.geometry?.coordinates?.[0] || 0,
           rating: null,
           review_count: 0,
           description: '',
@@ -118,28 +120,30 @@ export default async function handler(req, res) {
   }
 }
 
+function formatAddress(addr) {
+  if (!addr) return '';
+  if (typeof addr === 'string') return addr;
+  return [addr.road, addr.city || addr.town || addr.village, addr.country]
+    .filter(Boolean).join(', ');
+}
+
 async function getLocationBbox(location) {
   try {
-    const geoRes = await fetch(
+    const r = await fetch(
       `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(location)}&format=json&limit=1`,
       { headers: { 'Accept-Language': 'nl', 'User-Agent': 'Triply/1.0' } }
     );
-    const geoData = await geoRes.json();
-    if (geoData[0]) {
-      const bbox = geoData[0].boundingbox;
-      return {
-        lat_min: parseFloat(bbox[0]),
-        lat_max: parseFloat(bbox[1]),
-        lon_min: parseFloat(bbox[2]),
-        lon_max: parseFloat(bbox[3]),
-      };
+    const data = await r.json();
+    if (data[0]?.boundingbox) {
+      const [lat_min, lat_max, lon_min, lon_max] = data[0].boundingbox.map(parseFloat);
+      return { lat_min, lat_max, lon_min, lon_max };
     }
   } catch (_) {}
   return null;
 }
 
-function formatPlaces(dbPlaces) {
-  return dbPlaces.map(p => ({
+function formatPlaces(rows) {
+  return rows.map(p => ({
     name: p.name,
     category: p.category,
     address: p.address,
