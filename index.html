@@ -253,12 +253,40 @@ select:focus { outline: none; border-color: var(--primary); background: white; b
 .place-rating { font-size: 11px; color: var(--text); margin-top: 4px; }
 
 /* Planning Generator */
-.interest-option { display: flex; align-items: center; gap: 8px; padding: 10px; border: 1.5px solid var(--border);
-  border-radius: 12px; cursor: pointer; transition: all .15s; }
-.interest-option:hover { border-color: var(--primary); background: rgba(47,127,199,.06); }
-.interest-option input { width: 16px; height: 16px; cursor: pointer; }
-.interest-option.selected { border-color: var(--primary); background: rgba(47,127,199,.1); }
-.interest-label { font-size: 13px; color: var(--text-dark); font-weight: 600; flex: 1; cursor: pointer; }
+.pg-steps { display: flex; gap: 6px; margin-bottom: 20px; }
+.pg-step { flex: 1; height: 4px; border-radius: 2px; background: var(--border); transition: background .3s; }
+.pg-step.done { background: var(--primary); }
+.pg-step.active { background: var(--secondary); }
+
+.interest-card { border: 2px solid var(--border); border-radius: 16px; padding: 16px 8px 12px;
+  cursor: pointer; text-align: center; transition: all .2s; background: white; }
+.interest-card:hover { border-color: var(--primary); transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,102,255,.12); }
+.interest-card.selected { border-color: var(--primary); background: rgba(0,102,255,.06);
+  box-shadow: 0 4px 12px rgba(0,102,255,.15); }
+.interest-card-emoji { font-size: 30px; display: block; margin-bottom: 6px; }
+.interest-card-name { font-size: 11px; font-weight: 700; color: var(--text-dark); line-height: 1.3; }
+
+.pg-section-title { font-size: 12px; font-weight: 700; color: var(--text); text-transform: uppercase;
+  letter-spacing: .6px; margin: 16px 0 8px; }
+.flight-row { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
+.flight-label { font-size: 13px; font-weight: 600; color: var(--text-dark); min-width: 80px; }
+.flight-row input[type=time] { flex: 1; padding: 10px 12px; border: 2px solid var(--border);
+  border-radius: 10px; font-size: 14px; margin: 0; }
+
+.pace-options { display: flex; gap: 8px; margin-bottom: 4px; }
+.pace-btn { flex: 1; padding: 10px 6px; border: 2px solid var(--border); border-radius: 12px;
+  font-size: 11px; font-weight: 700; color: var(--text-dark); cursor: pointer;
+  background: white; text-align: center; transition: all .2s; }
+.pace-btn:hover { border-color: var(--primary); }
+.pace-btn.selected { border-color: var(--primary); background: rgba(0,102,255,.08); color: var(--primary); }
+.pace-emoji { font-size: 20px; display: block; margin-bottom: 4px; }
+
+.pg-progress { text-align: center; padding: 24px 0; }
+.pg-progress-bar { width: 100%; height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; margin: 12px 0; }
+.pg-progress-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--secondary));
+  border-radius: 4px; transition: width .5s ease; }
+.pg-progress-label { font-size: 13px; color: var(--text); }
 
 /* Notification toast */
 .toast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%);
@@ -471,13 +499,71 @@ select:focus { outline: none; border-color: var(--primary); background: white; b
 <div id="planning-modal" class="modal-overlay" onclick="closePlanningGenerator()">
   <div class="modal" onclick="event.stopPropagation()">
     <div class="modal-close" onclick="closePlanningGenerator()">✕</div>
-    <div class="modal-title">🎯 Planning genereren</div>
-    <p style="font-size:13px;color:var(--text);margin-bottom:16px">Wat vind je leuk op vakantie? (meerdere mogelijk)</p>
-    <div id="interests-list" style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:20px"></div>
-    <div id="planning-message"></div>
-    <button id="generate-btn" class="btn btn-primary" onclick="generatePlanning()">📅 Plan aanmaken</button>
-    <div style="margin-top:8px">
-      <button class="btn btn-secondary" onclick="closePlanningGenerator()">Annuleren</button>
+
+    <!-- Step indicators -->
+    <div class="pg-steps">
+      <div class="pg-step active" id="pg-step-1"></div>
+      <div class="pg-step" id="pg-step-2"></div>
+      <div class="pg-step" id="pg-step-3"></div>
+    </div>
+
+    <!-- Step 1: Interests -->
+    <div id="pg-page-1">
+      <div class="modal-title">Wat vind je leuk?</div>
+      <p style="font-size:13px;color:var(--text);margin-bottom:16px">Selecteer je interesses — de planning past zich aan.</p>
+      <div id="interests-list" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px"></div>
+      <button class="btn btn-primary" onclick="pgNext(1)">Volgende →</button>
+    </div>
+
+    <!-- Step 2: Flight & pace -->
+    <div id="pg-page-2" style="display:none">
+      <div class="modal-title">Reisinfo</div>
+
+      <div class="pg-section-title">✈️ Vluchttijden</div>
+      <div class="flight-row">
+        <span class="flight-label">🛬 Aankomst</span>
+        <input type="time" id="pg-arrival" value="14:00">
+        <span style="font-size:12px;color:var(--text)">dag 1</span>
+      </div>
+      <div class="flight-row">
+        <span class="flight-label">🛫 Vertrek</span>
+        <input type="time" id="pg-departure" value="12:00">
+        <span style="font-size:12px;color:var(--text)">laatste dag</span>
+      </div>
+      <p style="font-size:11px;color:var(--text);margin-bottom:16px;opacity:.7">Laat 00:00 staan als je geen vluchtinfo hebt.</p>
+
+      <div class="pg-section-title">🏃 Tempo van de reis</div>
+      <div class="pace-options">
+        <button class="pace-btn" id="pace-relaxed" onclick="selectPace('relaxed')">
+          <span class="pace-emoji">😌</span>Rustig<br><span style="font-weight:400;font-size:10px">2-3 per dag</span>
+        </button>
+        <button class="pace-btn selected" id="pace-normal" onclick="selectPace('normal')">
+          <span class="pace-emoji">🚶</span>Normaal<br><span style="font-weight:400;font-size:10px">3-4 per dag</span>
+        </button>
+        <button class="pace-btn" id="pace-intensive" onclick="selectPace('intensive')">
+          <span class="pace-emoji">⚡</span>Intensief<br><span style="font-weight:400;font-size:10px">4-5 per dag</span>
+        </button>
+      </div>
+
+      <div style="display:flex;gap:8px;margin-top:20px">
+        <button class="btn btn-secondary" onclick="pgBack(2)" style="flex:1">← Terug</button>
+        <button class="btn btn-primary" onclick="generatePlanning()" style="flex:2">📅 Plan aanmaken</button>
+      </div>
+    </div>
+
+    <!-- Step 3: Generating -->
+    <div id="pg-page-3" style="display:none">
+      <div class="pg-progress">
+        <div style="font-size:40px;margin-bottom:12px">🤖</div>
+        <div style="font-size:16px;font-weight:700;color:var(--text-dark);margin-bottom:4px">Planning maken...</div>
+        <div class="pg-progress-bar"><div class="pg-progress-fill" id="pg-fill" style="width:0%"></div></div>
+        <div class="pg-progress-label" id="pg-status">Activiteiten ophalen...</div>
+      </div>
+    </div>
+
+    <div id="planning-message" style="margin-top:8px"></div>
+    <div id="pg-error-back" style="display:none;margin-top:8px">
+      <button class="btn btn-secondary" onclick="pgBack(3)">← Terug</button>
     </div>
   </div>
 </div>
@@ -1150,36 +1236,93 @@ async function selectPlaceAsActivity() {
 }
 
 // ── Planning Generator ────────────────────────────────
-const INTERESTS = ['🏖️ Strand', '🏛️ Cultuur', '🍽️ Eten & drinken', '🥾 Avontuur', '🌿 Natuur', '🎪 Entertainment', '🛍️ Winkelen', '😴 Ontspanning'];
+const INTERESTS = [
+  { emoji: '🏖️', name: 'Strand & Zee' },
+  { emoji: '🏛️', name: 'Cultuur & Historie' },
+  { emoji: '🍽️', name: 'Eten & Drinken' },
+  { emoji: '🥾', name: 'Avontuur' },
+  { emoji: '🌿', name: 'Natuur' },
+  { emoji: '🎪', name: 'Entertainment' },
+  { emoji: '🛍️', name: 'Winkelen' },
+  { emoji: '😴', name: 'Ontspanning' },
+  { emoji: '📸', name: 'Foto & Uitzicht' },
+  { emoji: '🍹', name: 'Nightlife & Bar' },
+  { emoji: '🤿', name: 'Water sports' },
+  { emoji: '🏺', name: 'Lokale beleving' },
+];
+
+var pgPace = 'normal';
 
 function showPlanningGenerator() {
   selectedInterests = [];
-  const interestsList = document.getElementById('interests-list');
-  interestsList.innerHTML = INTERESTS.map((interest, i) => `
-    <label class="interest-option" onclick="toggleInterest(${i})">
-      <input type="checkbox" id="interest-${i}" onchange="updateInterestUI(${i})">
-      <span class="interest-label">${interest}</span>
-    </label>
-  `).join('');
+  pgPace = 'normal';
+  document.getElementById('pg-page-1').style.display = 'block';
+  document.getElementById('pg-page-2').style.display = 'none';
+  document.getElementById('pg-page-3').style.display = 'none';
   document.getElementById('planning-message').innerHTML = '';
-  document.getElementById('generate-btn').disabled = false;
-  document.getElementById('generate-btn').textContent = '📅 Plan aanmaken';
+  document.getElementById('pg-error-back').style.display = 'none';
+  pgSetStep(1);
+
+  document.getElementById('interests-list').innerHTML = INTERESTS.map((it, i) => `
+    <div class="interest-card" id="ic-${i}" onclick="toggleInterestCard(${i})">
+      <span class="interest-card-emoji">${it.emoji}</span>
+      <span class="interest-card-name">${it.name}</span>
+    </div>
+  `).join('');
+
   document.getElementById('planning-modal').classList.add('active');
 }
 
-function toggleInterest(i) {
-  const checkbox = document.getElementById('interest-' + i);
-  checkbox.checked = !checkbox.checked;
-  updateInterestUI(i);
+function toggleInterestCard(i) {
+  const card = document.getElementById('ic-' + i);
+  card.classList.toggle('selected');
+  selectedInterests = INTERESTS
+    .map((it, j) => document.getElementById('ic-' + j)?.classList.contains('selected') ? `${it.emoji} ${it.name}` : null)
+    .filter(Boolean);
 }
 
-function updateInterestUI(i) {
-  const checkbox = document.getElementById('interest-' + i);
-  const label = checkbox.parentElement;
-  label.classList.toggle('selected', checkbox.checked);
-  selectedInterests = Array.from({length: INTERESTS.length}, (_, j) =>
-    document.getElementById('interest-' + j).checked ? INTERESTS[j] : null
-  ).filter(Boolean);
+function selectPace(p) {
+  pgPace = p;
+  ['relaxed','normal','intensive'].forEach(id =>
+    document.getElementById('pace-' + id).classList.toggle('selected', id === p)
+  );
+}
+
+function pgSetStep(n) {
+  [1,2,3].forEach(i => {
+    const el = document.getElementById('pg-step-' + i);
+    el.classList.toggle('done', i < n);
+    el.classList.toggle('active', i === n);
+    el.classList.toggle('done', i < n);
+  });
+}
+
+function pgNext(from) {
+  if (from === 1) {
+    if (selectedInterests.length === 0) { toast('Kies minstens 1 interesse'); return; }
+    document.getElementById('pg-page-1').style.display = 'none';
+    document.getElementById('pg-page-2').style.display = 'block';
+    pgSetStep(2);
+  }
+}
+
+function pgBack(from) {
+  if (from === 2) {
+    document.getElementById('pg-page-2').style.display = 'none';
+    document.getElementById('pg-page-1').style.display = 'block';
+    pgSetStep(1);
+  } else if (from === 3) {
+    document.getElementById('pg-page-3').style.display = 'none';
+    document.getElementById('pg-page-2').style.display = 'block';
+    document.getElementById('planning-message').innerHTML = '';
+    document.getElementById('pg-error-back').style.display = 'none';
+    pgSetStep(2);
+  }
+}
+
+function pgProgress(pct, label) {
+  document.getElementById('pg-fill').style.width = pct + '%';
+  document.getElementById('pg-status').textContent = label;
 }
 
 function closePlanningGenerator() {
@@ -1188,24 +1331,36 @@ function closePlanningGenerator() {
 }
 
 async function generatePlanning() {
-  if (selectedInterests.length === 0) { toast('Kies minstens 1 interesse'); return; }
+  const arrival = document.getElementById('pg-arrival').value || '00:00';
+  const departure = document.getElementById('pg-departure').value || '00:00';
+  const maxPerDay = pgPace === 'relaxed' ? 2 : pgPace === 'intensive' ? 5 : 3;
 
-  // Get all activities for this trip
-  const { data: acts } = await _sb.from('triply_activities')
-    .select('*').eq('trip_id', currentTrip.id);
-
-  if (!acts || acts.length === 0) {
-    document.getElementById('planning-message').innerHTML =
-      '<div class="error">Geen activiteiten gevonden. Voeg eerst activiteiten toe via Google Places, TikTok of handmatig.</div>';
-    return;
-  }
-
-  document.getElementById('generate-btn').disabled = true;
-  document.getElementById('generate-btn').textContent = '⏳ Planning genereren...';
+  // Switch to loading screen
+  document.getElementById('pg-page-2').style.display = 'none';
+  document.getElementById('pg-page-3').style.display = 'block';
+  pgSetStep(3);
+  pgProgress(10, 'Activiteiten ophalen...');
 
   try {
-    const activitiesStr = acts.map(a => `- ${a.name} (${a.category}, ${a.area})`).join('\n');
-    const interestsStr = selectedInterests.join(', ');
+    const { data: acts } = await _sb.from('triply_activities')
+      .select('*').eq('trip_id', currentTrip.id);
+
+    if (!acts || acts.length === 0) {
+      throw new Error('Geen activiteiten gevonden. Voeg eerst activiteiten toe via TikTok, zoeken of handmatig.');
+    }
+
+    pgProgress(25, 'AI aan het plannen...');
+
+    const activitiesStr = acts.map(a =>
+      `- "${a.name}" [${a.category || 'Overig'}]`
+    ).join('\n');
+
+    const arrivalNote = arrival !== '00:00'
+      ? `Dag 1 aankomst op ${arrival} (reken 1.5u voor hotel inchecken → eerste activiteit pas na ${addHours(arrival, 2)})`
+      : 'Dag 1: geen vluchtinfo';
+    const departureNote = departure !== '00:00'
+      ? `Laatste dag (dag ${tripDays.length}): vertrek om ${departure}, plan NIETS na ${addHours(departure, -2.5)} (transfer naar vliegveld)`
+      : `Laatste dag: geen vluchtinfo`;
 
     const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
@@ -1213,72 +1368,101 @@ async function generatePlanning() {
       body: JSON.stringify({
         model: 'llama-3.3-70b-versatile',
         messages: [
-          { role: 'system', content: `Je bent een reisplanner. Plan activiteiten optimaal over dagen. Geef ALLEEN geldige JSON terug.` },
-          { role: 'user', content: `Plan deze activiteiten over ${tripDays.length} dagen op basis van interessevelden.
+          { role: 'system', content: `Je bent een expert reisplanner. Plan activiteiten slim over dagen met realistische tijden. Geef ALLEEN geldige JSON terug.` },
+          { role: 'user', content: `Plan onderstaande activiteiten over ${tripDays.length} dagen voor een reis naar ${currentTrip.destination}.
 
-Interesses: ${interestsStr}
-Aantal dagen: ${tripDays.length}
+VLUCHTEN:
+- ${arrivalNote}
+- ${departureNote}
 
-Activiteiten:
+INTERESSES VAN DE REIZIGER (geef hieraan voorkeur):
+${selectedInterests.join(', ')}
+
+TEMPO: max ${maxPerDay} activiteiten per dag
+
+ACTIVITEITEN TE PLANNEN:
 ${activitiesStr}
 
-Geef JSON terug met deze structuur (geen array, gewoon object met day1, day2, etc):
-{
-  "day1": ["<naam activiteit 1>", "<naam activiteit 2>"],
-  "day2": ["<naam activiteit 3>"],
-  ...
-}
+TIJDREGELS:
+- Strand/outdoor: plan vóór 13:00 of ná 16:00 (vermijd middagzon)
+- Musea/cultuur: 09:30-12:00 of 14:00-17:00
+- Lunch (Eten & drinken): rond 12:30-13:30
+- Diner (Eten & drinken): 19:00-21:00
+- Bars/nightlife: 21:00 of later
+- Winkelen: 10:00-12:00 of 15:00-18:00
+- Avontuur/watersport: ochtend 08:30-11:00
 
-Plan maximize variëteit en laat gasten genoeg rustmoment.` }
+VARIËTEIT-REGELS:
+- Nooit 2 keer Eten & drinken op een rij (lunch EN diner mag op zelfde dag, maar niet 2x lunch)
+- Zorg voor mix van categorieën per dag
+- Verspreid activiteiten gelijkmatig over de dagen
+
+Geef JSON terug als array (GEEN object, GEEN markdown):
+[
+  {"name": "exacte naam uit lijst", "day": 1, "time": "09:30"},
+  {"name": "exacte naam uit lijst", "day": 1, "time": "13:00"},
+  ...
+]
+
+Gebruik ALLEEN namen die exact overeenkomen met de lijst.` }
         ],
-        temperature: 0.7,
-        max_tokens: 600,
+        temperature: 0.4,
+        max_tokens: 1200,
       })
     });
 
-    if (!r.ok) {
-      document.getElementById('planning-message').innerHTML =
-        '<div class="error">Groq API fout bij planning genereren</div>';
-      return;
-    }
+    pgProgress(60, 'Planning verwerken...');
+
+    if (!r.ok) throw new Error('Groq API fout: ' + r.status);
 
     const data = await r.json();
     const text = data.choices[0].message.content;
-    const plan = JSON.parse(text.match(/\{[\s\S]*\}/)[0]);
+    const match = text.match(/\[[\s\S]*\]/);
+    if (!match) throw new Error('AI gaf geen geldig JSON terug');
+    const plan = JSON.parse(match[0]);
 
-    // Update activities: assign to days based on plan
-    for (let dayNum = 1; dayNum <= tripDays.length; dayNum++) {
-      const dayKey = 'day' + dayNum;
-      const dayActivities = plan[dayKey] || [];
+    pgProgress(80, 'Activiteiten opslaan...');
 
-      for (const actName of dayActivities) {
-        const act = acts.find(a => a.name === actName);
-        if (act) {
-          const time = '10:00'; // default time
-          await _sb.from('triply_activities')
-            .update({ day_number: dayNum, scheduled_time: time })
-            .eq('id', act.id);
-        }
+    // Reset all activities to wishlist first
+    await _sb.from('triply_activities')
+      .update({ day_number: null, scheduled_time: null })
+      .eq('trip_id', currentTrip.id);
+
+    // Apply plan
+    let saved = 0;
+    for (const item of plan) {
+      const act = acts.find(a => a.name === item.name ||
+        a.name.toLowerCase() === (item.name || '').toLowerCase());
+      if (act && item.day >= 1 && item.day <= tripDays.length) {
+        await _sb.from('triply_activities')
+          .update({ day_number: item.day, scheduled_time: item.time || '10:00' })
+          .eq('id', act.id);
+        saved++;
       }
     }
 
-    document.getElementById('planning-message').innerHTML =
-      '<div class="success">✅ Planning gegenereerd!</div>';
+    pgProgress(100, `✅ ${saved} activiteiten ingepland!`);
 
     setTimeout(() => {
       closePlanningGenerator();
       loadPlanning();
       loadActivities();
-      toast('📅 Plan aangemaakt!');
-    }, 1000);
+      toast(`📅 Planning klaar! ${saved} activiteiten ingepland.`);
+    }, 1200);
 
   } catch (e) {
-    document.getElementById('planning-message').innerHTML =
-      `<div class="error">Fout: ${e.message}</div>`;
-  } finally {
-    document.getElementById('generate-btn').disabled = false;
-    document.getElementById('generate-btn').textContent = '📅 Plan aanmaken';
+    document.getElementById('pg-page-3').style.display = 'none';
+    document.getElementById('planning-message').innerHTML = `<div class="error">❌ ${e.message}</div>`;
+    document.getElementById('pg-error-back').style.display = 'block';
   }
+}
+
+function addHours(timeStr, hours) {
+  if (!timeStr || timeStr === '00:00') return timeStr;
+  const [h, m] = timeStr.split(':').map(Number);
+  const total = h * 60 + m + Math.round(hours * 60);
+  const clamp = Math.max(0, Math.min(1439, total));
+  return `${String(Math.floor(clamp / 60)).padStart(2, '0')}:${String(clamp % 60).padStart(2, '0')}`;
 }
 
 // ── Account tab ───────────────────────────────────────
