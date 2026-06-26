@@ -139,6 +139,8 @@ select:focus { outline: none; border-color: var(--blue); }
 .timeline-del { font-size: 14px; color: var(--text); cursor: pointer; padding: 0 4px; opacity: .5; }
 .timeline-del:hover { opacity: 1; color: var(--red); }
 .day-empty { font-size: 12px; color: var(--text); opacity: .6; text-align: center; padding: 8px 0; }
+.day-card.drag-over { background: rgba(87,192,216,.08); border: 1.5px solid var(--teal); }
+.timeline-item { user-select: none; -webkit-user-select: none; }
 
 /* Activity cards */
 .activity-card { background: white; border-radius: 14px; padding: 14px;
@@ -819,11 +821,11 @@ async function loadPlanning() {
     const dayActs = (acts || []).filter(a => a.day_number === day.n)
       .sort((a,b) => (a.scheduled_time||'').localeCompare(b.scheduled_time||''));
     return `
-      <div class="day-card">
+      <div class="day-card" ondrop="dropActivity(event,${day.n})" ondragover="allowDrop(event)" ondragleave="event.target.classList.remove('drag-over')">
         <div class="day-header"><span class="day-label">Dag ${day.n}</span></div>
         <div class="day-date-sub">${day.label}</div>
         ${dayActs.length ? dayActs.map(a => `
-          <div class="timeline-item">
+          <div class="timeline-item" draggable="true" ondragstart="dragStart(event,'${a.id}')" ondragend="dragEnd(event)">
             <span class="timeline-time" onclick="openTimeModal('${a.id}','${a.scheduled_time||'10:00'}')">${a.scheduled_time||'10:00'}</span>
             <div class="timeline-dot"></div>
             <span class="timeline-name">${a.name}</span>
@@ -832,6 +834,45 @@ async function loadPlanning() {
         `).join('') : `<div class="day-empty">Nog niets gepland</div>`}
       </div>`;
   }).join('');
+  setupDragDrop();
+}
+
+var draggedActivityId = null;
+
+function allowDrop(e) {
+  e.preventDefault();
+  e.target.closest('.day-card')?.classList.add('drag-over');
+}
+
+function dragStart(e, activityId) {
+  draggedActivityId = activityId;
+  e.dataTransfer.effectAllowed = 'move';
+}
+
+function dragEnd(e) {
+  document.querySelectorAll('.day-card').forEach(d => d.classList.remove('drag-over'));
+  draggedActivityId = null;
+}
+
+async function dropActivity(e, dayNum) {
+  e.preventDefault();
+  e.target.closest('.day-card')?.classList.remove('drag-over');
+  if (!draggedActivityId) return;
+
+  await _sb.from('triply_activities')
+    .update({ day_number: dayNum })
+    .eq('id', draggedActivityId);
+
+  loadPlanning();
+  toast(`📍 Verplaatst naar dag ${dayNum}`);
+}
+
+function setupDragDrop() {
+  document.querySelectorAll('.timeline-item').forEach(item => {
+    item.style.cursor = 'grab';
+    item.addEventListener('dragstart', () => item.style.opacity = '.5');
+    item.addEventListener('dragend', () => item.style.opacity = '1');
+  });
 }
 
 // ── Activities tab ────────────────────────────────────
