@@ -1077,7 +1077,7 @@ async function searchPlaces() {
       <div class="place-item${selectedPlace?.name === p.name ? ' selected' : ''}" onclick="selectPlace(${i})">
         <div class="place-name">${p.name}</div>
         <div class="place-addr">${p.address}</div>
-        ${p.rating ? `<div class="place-rating">⭐ ${p.rating.toFixed(1)} (${p.reviews} reviews)</div>` : ''}
+        ${p.rating ? `<div class="place-rating">⭐ ${p.rating.toFixed(1)} (${p.review_count} reviews)</div>` : ''}
       </div>
     `).join('');
 
