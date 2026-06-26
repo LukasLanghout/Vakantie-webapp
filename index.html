@@ -151,6 +151,29 @@ select:focus { outline: none; border-color: var(--primary); background: white; b
 .day-empty { font-size: 14px; color: var(--text); text-align: center; padding: 24px 0; }
 .day-card.drag-over { background: rgba(0,102,255,.02); border-color: var(--primary); box-shadow: 0 0 0 3px rgba(0,102,255,.1); }
 
+/* Activity detail sheet */
+.detail-sheet { background: white; border-radius: 28px 28px 0 0; padding: 28px 24px 36px;
+  width: 100%; max-width: 480px; box-shadow: 0 -8px 40px rgba(0,0,0,.2);
+  position: relative; max-height: 90vh; overflow-y: auto; }
+.detail-drag-handle { width: 36px; height: 4px; background: var(--border); border-radius: 2px;
+  margin: 0 auto 20px; }
+.detail-category-badge { display: inline-block; padding: 4px 12px; border-radius: 20px;
+  font-size: 11px; font-weight: 700; background: rgba(0,102,255,.1); color: var(--primary);
+  margin-bottom: 12px; }
+.detail-title { font-family: 'Baloo 2'; font-size: 22px; font-weight: 800; color: var(--text-dark);
+  margin-bottom: 4px; line-height: 1.2; }
+.detail-location { display: flex; align-items: center; gap: 6px; font-size: 13px;
+  color: var(--text); margin-bottom: 16px; }
+.detail-desc { font-size: 14px; color: var(--text); line-height: 1.7; margin-bottom: 20px;
+  background: var(--light-gray); padding: 14px; border-radius: 12px; }
+.detail-meta-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+.detail-meta-chip { display: flex; align-items: center; gap: 6px; padding: 8px 12px;
+  background: var(--light-gray); border-radius: 10px; font-size: 12px; color: var(--text-dark);
+  font-weight: 600; cursor: pointer; transition: background .15s; }
+.detail-meta-chip:hover { background: var(--border); }
+.detail-actions { display: flex; gap: 8px; }
+.detail-actions .btn { flex: 1; }
+
 /* Activity cards */
 .activity-card { background: white; border-radius: 14px; padding: 14px;
   border: 1.5px solid var(--border); margin-bottom: 10px; }
@@ -584,6 +607,14 @@ select:focus { outline: none; border-color: var(--primary); background: white; b
   </div>
 </div>
 
+<!-- Activity Detail Sheet -->
+<div id="detail-modal" class="modal-overlay" onclick="closeDetailSheet()" style="align-items:flex-end">
+  <div class="detail-sheet" onclick="event.stopPropagation()">
+    <div class="detail-drag-handle"></div>
+    <div id="detail-content"></div>
+  </div>
+</div>
+
 <script>
 var _sb = null;
 var currentUser = null;
@@ -908,26 +939,43 @@ function switchTab(name, el) {
 }
 
 // ── Planning tab ──────────────────────────────────────
+var _planningActs = {};
+
 async function loadPlanning() {
   const { data: acts } = await _sb.from('triply_activities')
     .select('*').eq('trip_id', currentTrip.id).not('day_number', 'is', null)
     .order('scheduled_time');
 
+  // Store for detail lookups
+  _planningActs = {};
+  (acts || []).forEach(a => { _planningActs[a.id] = a; });
+
   document.getElementById('planning-content').innerHTML = tripDays.map(day => {
     const dayActs = (acts || []).filter(a => a.day_number === day.n)
       .sort((a,b) => (a.scheduled_time||'').localeCompare(b.scheduled_time||''));
+
+    const catColors = {
+      'Strand': '#0066FF', 'Cultuur': '#8B5CF6', 'Natuur': '#00D471',
+      'Eten & drinken': '#FF6B35', 'Avontuur': '#F59E0B', 'Uitzicht': '#00D4FF',
+      'Onderkomen': '#6B7280', 'Entertainment': '#EC4899', 'Overig': '#9CA3AF'
+    };
     return `
       <div class="day-card" ondrop="dropActivity(event,${day.n})" ondragover="allowDrop(event)" ondragleave="event.target.classList.remove('drag-over')">
-        <div class="day-header"><span class="day-label">Dag ${day.n}</span></div>
-        <div class="day-date-sub">${day.label}</div>
-        ${dayActs.length ? dayActs.map(a => `
-          <div class="timeline-item" draggable="true" ondragstart="dragStart(event,'${a.id}')" ondragend="dragEnd(event)">
-            <span class="timeline-time" onclick="openTimeModal('${a.id}','${a.scheduled_time||'10:00'}')">${a.scheduled_time||'10:00'}</span>
-            <div class="timeline-dot"></div>
-            <span class="timeline-name">${a.name}</span>
-            <span class="timeline-del" onclick="deleteActivity('${a.id}')">🗑</span>
-          </div>
-        `).join('') : `<div class="day-empty">Nog niets gepland</div>`}
+        <div class="day-header"><span class="day-label">Dag ${day.n}</span><span style="font-size:12px;color:var(--text)">${day.label}</span></div>
+        ${dayActs.length ? dayActs.map(a => {
+          const color = catColors[a.category] || '#9CA3AF';
+          return `
+          <div class="timeline-item" draggable="true" ondragstart="dragStart(event,'${a.id}')" ondragend="dragEnd(event)"
+               style="border-left-color:${color}">
+            <span class="timeline-time" onclick="event.stopPropagation();openTimeModal('${a.id}','${a.scheduled_time||'10:00'}')">${a.scheduled_time||'?:??'}</span>
+            <div class="timeline-dot" style="background:${color}"></div>
+            <div style="flex:1;min-width:0" onclick="showActivityDetail('${a.id}')">
+              <div class="timeline-name">${a.name}</div>
+              ${a.area ? `<div style="font-size:11px;color:var(--text);margin-top:2px">📍 ${a.area}</div>` : ''}
+            </div>
+            <span class="timeline-del" onclick="event.stopPropagation();deleteActivity('${a.id}')">🗑</span>
+          </div>`
+        }).join('') : `<div class="day-empty">Nog niets gepland</div>`}
       </div>`;
   }).join('');
   setupDragDrop();
@@ -969,6 +1017,50 @@ function setupDragDrop() {
     item.addEventListener('dragstart', () => item.style.opacity = '.5');
     item.addEventListener('dragend', () => item.style.opacity = '1');
   });
+}
+
+// ── Activity Detail Sheet ─────────────────────────────
+function showActivityDetail(id) {
+  const a = _planningActs[id];
+  if (!a) return;
+
+  const catEmoji = {
+    'Strand': '🏖️', 'Cultuur': '🏛️', 'Natuur': '🌿', 'Eten & drinken': '🍽️',
+    'Avontuur': '🥾', 'Uitzicht': '📸', 'Onderkomen': '🏨',
+    'Entertainment': '🎪', 'Overig': '⭐'
+  };
+  const emoji = catEmoji[a.category] || '⭐';
+
+  const mapsUrl = (a.lat && a.lng)
+    ? `https://www.google.com/maps/search/?api=1&query=${a.lat},${a.lng}`
+    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((a.area||a.name)+','+currentTrip.destination)}`;
+
+  document.getElementById('detail-content').innerHTML = `
+    ${a.image_url ? `<img src="${a.image_url}" style="width:100%;height:160px;object-fit:cover;border-radius:16px;margin-bottom:16px">` : ''}
+    <div class="detail-category-badge">${emoji} ${a.category || 'Activiteit'}</div>
+    <div class="detail-title">${a.name}</div>
+    <div class="detail-location">
+      <span>📍</span>
+      <span>${[a.area, currentTrip.destination].filter(Boolean).join(', ')}</span>
+    </div>
+    ${a.description ? `<div class="detail-desc">${a.description}</div>` : ''}
+    <div class="detail-meta-row">
+      ${a.is_free ? '<div class="detail-meta-chip">🆓 Gratis</div>' : a.price_value ? `<div class="detail-meta-chip">💶 €${a.price_value}</div>` : ''}
+      ${a.opening_hours ? `<div class="detail-meta-chip">🕐 ${a.opening_hours}</div>` : ''}
+      ${a.phone ? `<div class="detail-meta-chip" onclick="window.open('tel:${a.phone}')">📞 ${a.phone}</div>` : ''}
+      ${a.website ? `<div class="detail-meta-chip" onclick="window.open('${a.website}','_blank')">🌐 Website</div>` : ''}
+      ${a.tiktok_url ? `<div class="detail-meta-chip" onclick="window.open('${a.tiktok_url}','_blank')">▶ TikTok</div>` : ''}
+    </div>
+    <div class="detail-actions">
+      <button class="btn btn-primary" onclick="window.open('${mapsUrl}','_blank')">📍 Open in Maps</button>
+      <button class="btn btn-secondary" onclick="closeDetailSheet()">Sluiten</button>
+    </div>
+  `;
+  document.getElementById('detail-modal').classList.add('active');
+}
+
+function closeDetailSheet() {
+  document.getElementById('detail-modal').classList.remove('active');
 }
 
 // ── Activities tab ────────────────────────────────────
