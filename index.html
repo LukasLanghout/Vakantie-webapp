@@ -228,6 +228,19 @@ select:focus { outline: none; border-color: var(--blue); }
   display: flex; align-items: center; justify-content: center; color: white; font-size: 13px; font-weight: 700; }
 .member-name { font-size: 13px; color: var(--navy); font-weight: 600; }
 
+/* Google Places */
+.places-search { display: flex; gap: 8px; margin-bottom: 12px; }
+.places-search input { flex: 1; }
+.places-search button { flex-shrink: 0; }
+.places-results { max-height: 200px; overflow-y: auto; margin-bottom: 12px; border: 1.5px solid var(--border); border-radius: 12px; }
+.place-item { padding: 10px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background .15s; }
+.place-item:last-child { border-bottom: none; }
+.place-item:hover { background: rgba(47,127,199,.06); }
+.place-item.selected { background: rgba(47,127,199,.12); border-left: 3px solid var(--blue); padding-left: 7px; }
+.place-name { font-weight: 600; color: var(--navy); font-size: 13px; }
+.place-addr { font-size: 11px; color: var(--text); margin-top: 2px; }
+.place-rating { font-size: 11px; color: var(--text); margin-top: 4px; }
+
 /* Notification toast */
 .toast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%);
   background: var(--navy); color: white; padding: 10px 18px; border-radius: 20px;
@@ -417,6 +430,16 @@ select:focus { outline: none; border-color: var(--blue); }
     </select>
     <div id="modal-message" style="margin-bottom:8px"></div>
     <button id="add-btn" class="btn btn-primary" onclick="analyzeActivity()">🤖 AI analyseren</button>
+
+    <div class="divider">of</div>
+
+    <div class="places-search">
+      <input type="text" id="places-query" placeholder="Zoeken op Google Places (restaurant, museum, strand...)" onkeyup="searchPlaces()">
+      <button class="btn btn-secondary btn-sm" onclick="searchPlaces()" style="padding:0 12px">🔍</button>
+    </div>
+    <div id="places-results" class="places-results" style="display:none"></div>
+    <button id="select-place-btn" class="btn btn-primary" onclick="selectPlaceAsActivity()" style="display:none;margin-bottom:8px">📍 Geselecteerde plaats toevoegen</button>
+
     <div style="margin-top:8px">
       <button class="btn btn-secondary" onclick="closeAddActivityModal()">Annuleren</button>
     </div>
@@ -451,6 +474,8 @@ var pinMode = 'check';
 var editingActivityId = null;
 var leafletMap = null;
 var realtimeChannel = null;
+var googlePlacesKey = '';
+var selectedPlace = null;
 
 // ── Toast ──────────────────────────────────────────────
 function toast(msg, duration) {
@@ -516,11 +541,12 @@ async function initSupabase() {
     const cfg = await r.json();
     if (!cfg.supabaseUrl || !cfg.supabaseKey) {
       document.getElementById('auth-message').innerHTML =
-        '<div class="error">⚠️ App niet geconfigureerd. Voeg SUPABASE_URL, SUPABASE_ANON_KEY en GROQ_API_KEY toe in Vercel.</div>';
+        '<div class="error">⚠️ App niet geconfigureerd. Voeg SUPABASE_URL, SUPABASE_ANON_KEY, GROQ_API_KEY en GOOGLE_PLACES_API_KEY toe in Vercel.</div>';
       return;
     }
     _sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey);
     groqKey = cfg.groqApiKey || '';
+    googlePlacesKey = cfg.googlePlacesKey || '';
     await checkAuth();
   } catch(e) { console.error('Init failed:', e); }
 }
@@ -948,6 +974,103 @@ function copyCode(code) {
   navigator.clipboard.writeText(code).then(() => toast(`Code ${code} gekopieerd! 📋`));
 }
 
+// ── Google Places ──────────────────────────────────────
+async function searchPlaces() {
+  const query = document.getElementById('places-query').value.trim();
+  if (!query) {
+    document.getElementById('places-results').style.display = 'none';
+    return;
+  }
+
+  const resultsEl = document.getElementById('places-results');
+  resultsEl.innerHTML = '<div style="padding:10px;text-align:center"><div class="spinner"></div></div>';
+  resultsEl.style.display = 'block';
+
+  try {
+    const q = encodeURIComponent(query);
+    const loc = encodeURIComponent(currentTrip?.destination || '');
+    const r = await fetch(`/api/places?query=${q}&location=${loc}`);
+    const data = await r.json();
+
+    if (!data.ok || data.results.length === 0) {
+      resultsEl.innerHTML = '<div style="padding:10px;color:var(--text);font-size:12px">Geen resultaten gevonden</div>';
+      document.getElementById('select-place-btn').style.display = 'none';
+      return;
+    }
+
+    resultsEl.innerHTML = data.results.map((p, i) => `
+      <div class="place-item${selectedPlace?.name === p.name ? ' selected' : ''}" onclick="selectPlace(${i})">
+        <div class="place-name">${p.name}</div>
+        <div class="place-addr">${p.address}</div>
+        ${p.rating ? `<div class="place-rating">⭐ ${p.rating.toFixed(1)} (${p.reviews} reviews)</div>` : ''}
+      </div>
+    `).join('');
+
+    document.getElementById('select-place-btn').style.display = 'block';
+  } catch (e) {
+    resultsEl.innerHTML = `<div style="padding:10px;color:var(--red);font-size:12px">Fout: ${e.message}</div>`;
+  }
+}
+
+function selectPlace(index) {
+  const query = document.getElementById('places-query').value.trim();
+  if (!query) return;
+
+  (async () => {
+    const q = encodeURIComponent(query);
+    const loc = encodeURIComponent(currentTrip?.destination || '');
+    const r = await fetch(`/api/places?query=${q}&location=${loc}`);
+    const data = await r.json();
+    if (data.results[index]) {
+      selectedPlace = data.results[index];
+      document.querySelectorAll('.place-item').forEach((el, i) => {
+        el.classList.toggle('selected', i === index);
+      });
+    }
+  })();
+}
+
+async function selectPlaceAsActivity() {
+  if (!selectedPlace) return;
+
+  const dayVal = document.getElementById('activity-day').value;
+  const timeVal = document.getElementById('activity-time-select').value;
+
+  const category = selectedPlace.types.includes('restaurant') ? 'Eten & drinken' :
+                   selectedPlace.types.includes('lodging') ? 'Onderkomen' :
+                   selectedPlace.types.includes('tourist_attraction') ? 'Cultuur' :
+                   selectedPlace.types.includes('natural_feature') ? 'Natuur' : 'Overig';
+
+  const description = selectedPlace.rating
+    ? `⭐ ${selectedPlace.rating.toFixed(1)}/5 (${selectedPlace.reviews} reviews)`
+    : 'Van Google Maps';
+
+  const { error } = await _sb.from('triply_activities').insert([{
+    trip_id: currentTrip.id,
+    added_by: currentUser.id,
+    name: selectedPlace.name,
+    category,
+    area: selectedPlace.name,
+    lat: selectedPlace.lat,
+    lng: selectedPlace.lng,
+    price_value: 0,
+    is_free: true,
+    description,
+    day_number: dayVal ? parseInt(dayVal) : null,
+    scheduled_time: dayVal ? timeVal : null,
+  }]);
+
+  if (error) { modalMsg(error.message, 'error'); return; }
+
+  modalMsg('✅ Plaats toegevoegd!', 'success');
+  setTimeout(() => {
+    closeAddActivityModal();
+    loadActivities();
+    loadPlanning();
+    updateMapMarkers();
+  }, 900);
+}
+
 // ── Account tab ───────────────────────────────────────
 const AVATARS = ['🦁','🐯','🐻','🦊','🐼','🐨','🐸','🦋','🦄','🐬','🦅','🌺','🍀','⚡','🎯','🏄','🎸','🌊','🏔','🌙','🎪','🚀','🌴','🦩'];
 var _selectedAvatar = '';
@@ -1026,6 +1149,11 @@ function closeAddActivityModal() {
   document.getElementById('modal-message').innerHTML = '';
   document.getElementById('add-btn').disabled = false;
   document.getElementById('add-btn').textContent = '🤖 AI analyseren';
+  document.getElementById('places-query').value = '';
+  document.getElementById('places-results').innerHTML = '';
+  document.getElementById('places-results').style.display = 'none';
+  document.getElementById('select-place-btn').style.display = 'none';
+  selectedPlace = null;
 }
 
 async function analyzeActivity() {
