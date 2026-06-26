@@ -28,7 +28,7 @@ export default async function handler(req, res) {
 
     // OpenTripMap free API - no key needed!
     const bbox = location ? await getLocationBbox(location) : null;
-    const limit = 10;
+    const limit = 20;
     const kinds = 'interesting_places,museums,historic,cafe,restaurant,bar,hotel';
 
     let url = `https://api.opentripmap.com/0.1/en/places/bbox?lon_min=${bbox?.lon_min || -180}&lon_max=${bbox?.lon_max || 180}&lat_min=${bbox?.lat_min || -90}&lat_max=${bbox?.lat_max || 90}&kinds=${kinds}&limit=${limit}`;
@@ -40,9 +40,14 @@ export default async function handler(req, res) {
       return res.json({ ok: true, results: [] });
     }
 
-    // Get full details for each place
+    // Filter by query if provided, then get full details
+    const queryLower = query.toLowerCase();
+    const featuresArray = placesData.features.filter(f =>
+      f.properties.name.toLowerCase().includes(queryLower)
+    ).slice(0, 10);
+
     const results = [];
-    for (const feature of placesData.features.slice(0, 10)) {
+    for (const feature of featuresArray) {
       const xid = feature.properties.xid;
       try {
         const detailRes = await fetch(`https://api.opentripmap.com/0.1/en/places/xid/${xid}`, {
