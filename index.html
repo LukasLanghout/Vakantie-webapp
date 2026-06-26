@@ -241,6 +241,14 @@ select:focus { outline: none; border-color: var(--blue); }
 .place-addr { font-size: 11px; color: var(--text); margin-top: 2px; }
 .place-rating { font-size: 11px; color: var(--text); margin-top: 4px; }
 
+/* Planning Generator */
+.interest-option { display: flex; align-items: center; gap: 8px; padding: 10px; border: 1.5px solid var(--border);
+  border-radius: 12px; cursor: pointer; transition: all .15s; }
+.interest-option:hover { border-color: var(--blue); background: rgba(47,127,199,.06); }
+.interest-option input { width: 16px; height: 16px; cursor: pointer; }
+.interest-option.selected { border-color: var(--blue); background: rgba(47,127,199,.1); }
+.interest-label { font-size: 13px; color: var(--navy); font-weight: 600; flex: 1; cursor: pointer; }
+
 /* Notification toast */
 .toast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%);
   background: var(--navy); color: white; padding: 10px 18px; border-radius: 20px;
@@ -375,6 +383,7 @@ select:focus { outline: none; border-color: var(--blue); }
 
     <div class="content">
       <div id="planning-tab" class="tab-content active">
+        <button class="btn btn-primary" style="margin-bottom:12px;font-size:14px" onclick="showPlanningGenerator()">🎯 Planning genereren</button>
         <div id="planning-content"></div>
       </div>
       <div id="activities-tab" class="tab-content">
@@ -446,6 +455,21 @@ select:focus { outline: none; border-color: var(--blue); }
   </div>
 </div>
 
+<!-- Planning Generator Modal -->
+<div id="planning-modal" class="modal-overlay" onclick="closePlanningGenerator()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-close" onclick="closePlanningGenerator()">✕</div>
+    <div class="modal-title">🎯 Planning genereren</div>
+    <p style="font-size:13px;color:var(--text);margin-bottom:16px">Wat vind je leuk op vakantie? (meerdere mogelijk)</p>
+    <div id="interests-list" style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:20px"></div>
+    <div id="planning-message"></div>
+    <button id="generate-btn" class="btn btn-primary" onclick="generatePlanning()">📅 Plan aanmaken</button>
+    <div style="margin-top:8px">
+      <button class="btn btn-secondary" onclick="closePlanningGenerator()">Annuleren</button>
+    </div>
+  </div>
+</div>
+
 <!-- Time Edit Modal -->
 <div id="time-modal" class="modal-overlay" onclick="closeTimeModal()">
   <div class="modal" onclick="event.stopPropagation()" style="max-width:300px">
@@ -476,6 +500,7 @@ var leafletMap = null;
 var realtimeChannel = null;
 var googlePlacesKey = '';
 var selectedPlace = null;
+var selectedInterests = [];
 
 // ── Toast ──────────────────────────────────────────────
 function toast(msg, duration) {
@@ -1069,6 +1094,138 @@ async function selectPlaceAsActivity() {
     loadPlanning();
     updateMapMarkers();
   }, 900);
+}
+
+// ── Planning Generator ────────────────────────────────
+const INTERESTS = ['🏖️ Strand', '🏛️ Cultuur', '🍽️ Eten & drinken', '🥾 Avontuur', '🌿 Natuur', '🎪 Entertainment', '🛍️ Winkelen', '😴 Ontspanning'];
+
+function showPlanningGenerator() {
+  selectedInterests = [];
+  const interestsList = document.getElementById('interests-list');
+  interestsList.innerHTML = INTERESTS.map((interest, i) => `
+    <label class="interest-option" onclick="toggleInterest(${i})">
+      <input type="checkbox" id="interest-${i}" onchange="updateInterestUI(${i})">
+      <span class="interest-label">${interest}</span>
+    </label>
+  `).join('');
+  document.getElementById('planning-message').innerHTML = '';
+  document.getElementById('generate-btn').disabled = false;
+  document.getElementById('generate-btn').textContent = '📅 Plan aanmaken';
+  document.getElementById('planning-modal').classList.add('active');
+}
+
+function toggleInterest(i) {
+  const checkbox = document.getElementById('interest-' + i);
+  checkbox.checked = !checkbox.checked;
+  updateInterestUI(i);
+}
+
+function updateInterestUI(i) {
+  const checkbox = document.getElementById('interest-' + i);
+  const label = checkbox.parentElement;
+  label.classList.toggle('selected', checkbox.checked);
+  selectedInterests = Array.from({length: INTERESTS.length}, (_, j) =>
+    document.getElementById('interest-' + j).checked ? INTERESTS[j] : null
+  ).filter(Boolean);
+}
+
+function closePlanningGenerator() {
+  document.getElementById('planning-modal').classList.remove('active');
+  selectedInterests = [];
+}
+
+async function generatePlanning() {
+  if (selectedInterests.length === 0) { toast('Kies minstens 1 interesse'); return; }
+
+  // Get all activities for this trip
+  const { data: acts } = await _sb.from('triply_activities')
+    .select('*').eq('trip_id', currentTrip.id);
+
+  if (!acts || acts.length === 0) {
+    document.getElementById('planning-message').innerHTML =
+      '<div class="error">Geen activiteiten gevonden. Voeg eerst activiteiten toe via Google Places, TikTok of handmatig.</div>';
+    return;
+  }
+
+  document.getElementById('generate-btn').disabled = true;
+  document.getElementById('generate-btn').textContent = '⏳ Planning genereren...';
+
+  try {
+    const activitiesStr = acts.map(a => `- ${a.name} (${a.category}, ${a.area})`).join('\n');
+    const interestsStr = selectedInterests.join(', ');
+
+    const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${groqKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages: [
+          { role: 'system', content: `Je bent een reisplanner. Plan activiteiten optimaal over dagen. Geef ALLEEN geldige JSON terug.` },
+          { role: 'user', content: `Plan deze activiteiten over ${tripDays.length} dagen op basis van interessevelden.
+
+Interesses: ${interestsStr}
+Aantal dagen: ${tripDays.length}
+
+Activiteiten:
+${activitiesStr}
+
+Geef JSON terug met deze structuur (geen array, gewoon object met day1, day2, etc):
+{
+  "day1": ["<naam activiteit 1>", "<naam activiteit 2>"],
+  "day2": ["<naam activiteit 3>"],
+  ...
+}
+
+Plan maximize variëteit en laat gasten genoeg rustmoment.` }
+        ],
+        temperature: 0.7,
+        max_tokens: 600,
+      })
+    });
+
+    if (!r.ok) {
+      document.getElementById('planning-message').innerHTML =
+        '<div class="error">Groq API fout bij planning genereren</div>';
+      return;
+    }
+
+    const data = await r.json();
+    const text = data.choices[0].message.content;
+    const plan = JSON.parse(text.match(/\{[\s\S]*\}/)[0]);
+
+    // Update activities: assign to days based on plan
+    for (let dayNum = 1; dayNum <= tripDays.length; dayNum++) {
+      const dayKey = 'day' + dayNum;
+      const dayActivities = plan[dayKey] || [];
+
+      for (const actName of dayActivities) {
+        const act = acts.find(a => a.name === actName);
+        if (act) {
+          const time = '10:00'; // default time
+          await _sb.from('triply_activities')
+            .update({ day_number: dayNum, scheduled_time: time })
+            .eq('id', act.id);
+        }
+      }
+    }
+
+    document.getElementById('planning-message').innerHTML =
+      '<div class="success">✅ Planning gegenereerd!</div>';
+
+    setTimeout(() => {
+      closePlanningGenerator();
+      loadPlanning();
+      loadActivities();
+      toast('📅 Plan aangemaakt!');
+    }, 1000);
+
+  } catch (e) {
+    document.getElementById('planning-message').innerHTML =
+      `<div class="error">Fout: ${e.message}</div>`;
+  } finally {
+    document.getElementById('generate-btn').disabled = false;
+    document.getElementById('generate-btn').textContent = '📅 Plan aanmaken';
+  }
 }
 
 // ── Account tab ───────────────────────────────────────
