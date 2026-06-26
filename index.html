@@ -1111,14 +1111,16 @@ async function selectPlaceAsActivity() {
   const dayVal = document.getElementById('activity-day').value;
   const timeVal = document.getElementById('activity-time-select').value;
 
-  const category = selectedPlace.types.includes('restaurant') ? 'Eten & drinken' :
-                   selectedPlace.types.includes('lodging') ? 'Onderkomen' :
-                   selectedPlace.types.includes('tourist_attraction') ? 'Cultuur' :
-                   selectedPlace.types.includes('natural_feature') ? 'Natuur' : 'Overig';
+  // Map OpenTripMap categories to activity categories
+  const catLower = (selectedPlace.category || '').toLowerCase();
+  const category = catLower.includes('restaurant') || catLower.includes('cafe') ? 'Eten & drinken' :
+                   catLower.includes('hotel') || catLower.includes('lodg') ? 'Onderkomen' :
+                   catLower.includes('museum') || catLower.includes('historic') ? 'Cultuur' :
+                   catLower.includes('nature') ? 'Natuur' : 'Overig';
 
   const description = selectedPlace.rating
-    ? `⭐ ${selectedPlace.rating.toFixed(1)}/5 (${selectedPlace.reviews} reviews)`
-    : 'Van Google Maps';
+    ? `⭐ ${selectedPlace.rating.toFixed(1)}/5 (${selectedPlace.review_count} reviews)`
+    : 'Van OpenTripMap';
 
   const { error } = await _sb.from('triply_activities').insert([{
     trip_id: currentTrip.id,
